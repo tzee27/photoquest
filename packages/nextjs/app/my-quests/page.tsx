@@ -413,15 +413,13 @@ const QuestDetailsWrapper = ({
   const deadlineDate = new Date(Number(quest.deadline) * 1000);
   const createdDate = new Date(Number(quest.createdAt) * 1000);
 
-  // Check if quest has submitted photo
-  const hasSubmittedPhoto = quest.watermarkedPhotoIPFS && quest.watermarkedPhotoIPFS.length > 0;
+  // Check if quest has submitted photo - Update for new contract structure
+  // In the new design, we need to check if current user has submitted to this quest
+  const hasSubmittedPhoto = false; // TODO: Check via hasPhotographerSubmitted contract call
 
-  // Check if user can upload photo (is photographer and quest is accepted but no photo submitted)
-  const canUploadPhoto =
-    type === "accepted" &&
-    quest.photographer.toLowerCase() === connectedAddress?.toLowerCase() &&
-    statusDisplay === "Accepted" &&
-    !hasSubmittedPhoto;
+  // Check if user can upload photo - Update logic for new contract structure
+  // In new design, users can submit directly to open quests, no "acceptance" needed
+  const canUploadPhoto = false; // Disable old upload logic since we now use QuestDetailModal for submissions
 
   const handleShowImage = () => {
     if (hasSubmittedPhoto) {
@@ -517,19 +515,22 @@ const QuestDetailsWrapper = ({
               <span className="font-semibold text-gray-900 text-xs">{createdDate.toLocaleDateString()}</span>
             </div>
 
-            {quest.submittedAt > 0 && (
+            {/* Remove the submittedAt check since it doesn't exist in new contract */}
+            {/* {quest.submittedAt > 0 && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Submitted:</span>
                 <span className="font-semibold text-gray-900 text-xs">
                   {new Date(Number(quest.submittedAt) * 1000).toLocaleDateString()}
                 </span>
               </div>
-            )}
+            )} */}
 
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Photo Status:</span>
-              <span className={`font-semibold text-xs ${hasSubmittedPhoto ? "text-green-600" : "text-gray-500"}`}>
-                {hasSubmittedPhoto ? "Submitted" : "Not Submitted"}
+              <span className="text-sm text-gray-600">Status:</span>
+              <span
+                className={`font-semibold text-xs ${quest.status === 0 ? "text-green-600" : quest.status === 1 ? "text-orange-600" : "text-gray-600"}`}
+              >
+                {statusDisplay}
               </span>
             </div>
 
@@ -542,14 +543,15 @@ const QuestDetailsWrapper = ({
               </div>
             )}
 
-            {type === "accepted" && quest.photographer !== "0x0000000000000000000000000000000000000000" && (
+            {/* Remove photographer display since it doesn't exist in new contract */}
+            {/* {type === "accepted" && quest.photographer !== "0x0000000000000000000000000000000000000000" && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Photographer:</span>
                 <span className="font-semibold text-gray-900 text-xs font-mono">
                   {quest.photographer.slice(0, 6)}...{quest.photographer.slice(-4)}
                 </span>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Tags */}
@@ -572,11 +574,13 @@ const QuestDetailsWrapper = ({
         </div>
       </motion.div>
 
-      {/* Image Modal */}
+      {/* Image Modal - Update to handle new contract structure */}
       <ImageModal
         isOpen={showImageModal}
         onClose={() => setShowImageModal(false)}
-        imageUrl={hasSubmittedPhoto ? getIPFSUrl(quest.watermarkedPhotoIPFS) : ""}
+        imageUrl={
+          hasSubmittedPhoto ? "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop" : ""
+        }
         questTitle={quest.title}
       />
 

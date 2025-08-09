@@ -13,7 +13,7 @@ contract YourContract {
     // State Variables
     address public immutable owner;
     uint256 public questCounter = 0;
-    uint256 public platformFeePercentage = 250; // 2.5% (250 basis points)
+    uint256 public platformFeePercentage = 300; // 2.5% (250 basis points)
     
     // Enums
     enum QuestStatus { Open, HasSubmissions, Completed, Cancelled }

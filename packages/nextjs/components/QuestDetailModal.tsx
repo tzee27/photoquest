@@ -21,6 +21,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState<string>("");
+  const [selectedSubmissions, setSelectedSubmissions] = useState<number[]>([]);
 
   const { address: connectedAddress } = useAccount();
 
@@ -71,6 +72,236 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
     if (diffDays === 0) return "Ends today";
     if (diffDays === 1) return "Ends tomorrow";
     return `${diffDays} days remaining`;
+  };
+
+  // Submissions Display Component with Selection Functionality
+  const SubmissionsDisplay = ({
+    questSubmissions,
+    isQuestCreator,
+    contractQuest,
+    quest,
+    isApproving,
+    handleSelectSubmissions,
+  }: {
+    questSubmissions: any[];
+    isQuestCreator: boolean;
+    contractQuest: any;
+    quest: any;
+    isApproving: boolean;
+    handleSelectSubmissions: (indices: number[]) => void;
+  }) => {
+    const [selectedSubmissions, setSelectedSubmissions] = useState<number[]>([]);
+
+    const handleSubmissionToggle = (index: number) => {
+      setSelectedSubmissions(prev => (prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]));
+    };
+
+    const handleSelectAll = () => {
+      if (selectedSubmissions.length === questSubmissions.length) {
+        setSelectedSubmissions([]);
+      } else {
+        setSelectedSubmissions(questSubmissions.map((_, index) => index));
+      }
+    };
+
+    const handleApproveSelected = () => {
+      if (selectedSubmissions.length > 0) {
+        handleSelectSubmissions(selectedSubmissions);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Quest Submissions ({questSubmissions.length})</h3>
+
+          {/* Selection Controls for Quest Creator */}
+          {isQuestCreator && contractQuest?.status === 1 && (
+            <div className="flex items-center space-x-2">
+              <button onClick={handleSelectAll} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                {selectedSubmissions.length === questSubmissions.length ? "Deselect All" : "Select All"}
+              </button>
+              <span className="text-sm text-gray-500">({selectedSubmissions.length} selected)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Display all submissions */}
+        {questSubmissions.map((submission: any, index: number) => (
+          <div
+            key={index}
+            className={`p-4 bg-white/20 backdrop-blur-sm rounded-lg border transition-all duration-200 ${
+              isQuestCreator && contractQuest?.status === 1
+                ? selectedSubmissions.includes(index)
+                  ? "border-blue-400 bg-blue-50/30"
+                  : "border-white/30 hover:border-blue-200"
+                : "border-white/30"
+            }`}
+          >
+            <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
+              {/* Selection Checkbox for Quest Creator */}
+              {isQuestCreator && contractQuest?.status === 1 && (
+                <div className="flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={selectedSubmissions.includes(index)}
+                    onChange={() => handleSubmissionToggle(index)}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              {/* Photo Preview */}
+              <div className="flex-shrink-0">
+                {submission.watermarkedPhotoIPFS ? (
+                  <div className="relative w-16 h-16">
+                    <img
+                      src={getIPFSUrl(submission.watermarkedPhotoIPFS)}
+                      alt="Submitted photo"
+                      className="w-16 h-16 object-cover rounded-lg"
+                      onLoad={e => {
+                        console.log("Image loaded successfully:", submission.watermarkedPhotoIPFS);
+                        // Hide loading overlay
+                        const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (loadingOverlay) {
+                          loadingOverlay.style.display = "none";
+                        }
+                      }}
+                      onError={e => {
+                        console.log("Image failed to load from:", e.currentTarget.src);
+                        console.log("IPFS Hash:", submission.watermarkedPhotoIPFS);
+
+                        // Try multiple fallback gateways
+                        const currentSrc = e.currentTarget.src;
+                        const ipfsHash = submission.watermarkedPhotoIPFS;
+
+                        // List of IPFS gateways to try
+                        const gateways = getIPFSGateways(ipfsHash);
+
+                        // Find current gateway index and try next one
+                        let nextGateway = null;
+                        for (let i = 0; i < gateways.length; i++) {
+                          if (currentSrc === gateways[i] && i < gateways.length - 1) {
+                            nextGateway = gateways[i + 1];
+                            break;
+                          }
+                        }
+
+                        if (nextGateway) {
+                          console.log("Trying next gateway:", nextGateway);
+                          e.currentTarget.src = nextGateway;
+                        } else {
+                          // All gateways failed, use placeholder and hide loading
+                          console.log("All IPFS gateways failed, using placeholder");
+                          e.currentTarget.src =
+                            "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=64&h=64&fit=crop";
+                          const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
+                          if (loadingOverlay) {
+                            loadingOverlay.style.display = "none";
+                          }
+                        }
+                      }}
+                    />
+                    {/* Loading overlay */}
+                    <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              {/* Submission Details */}
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="font-mono text-sm text-gray-800 font-semibold">{submission.photographer}</span>
+                  <ExternalLink className="w-4 h-4 text-gray-600" />
+                  {submission.isSelected && (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                      Selected
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-gray-700 font-medium">
+                  Submitted: {new Date(Number(submission.submittedAt) * 1000).toLocaleDateString()}
+                </div>
+                {submission.watermarkedPhotoIPFS && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    IPFS: {submission.watermarkedPhotoIPFS.slice(0, 20)}...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Selection Actions - Only show to quest creator */}
+        {isQuestCreator && contractQuest?.status === 1 && (
+          <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+            <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submissions</h4>
+            <p className="text-sm text-gray-700 mb-4">
+              Select the winning submissions to complete the quest and release payments. You can select multiple winners
+              to share the reward.
+            </p>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleApproveSelected}
+                disabled={isApproving || selectedSubmissions.length === 0}
+                className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isApproving ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Coins className="w-5 h-5" />
+                    <span>
+                      {selectedSubmissions.length === 0
+                        ? "Select Winners to Complete Quest"
+                        : `Approve ${selectedSubmissions.length} Winner${selectedSubmissions.length > 1 ? "s" : ""} & Complete Quest`}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {selectedSubmissions.length > 0 && (
+              <div className="mt-3 p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Reward Distribution:</strong> {quest.reward} will be split equally among{" "}
+                  {selectedSubmissions.length} winner{selectedSubmissions.length > 1 ? "s" : ""}(
+                  {(parseFloat(quest.reward.replace(" ETH", "")) / selectedSubmissions.length).toFixed(4)} ETH each)
+                </p>
+              </div>
+            )}
+
+            <p className="text-center text-sm text-gray-700 mt-2">Total Reward: {quest.reward}</p>
+          </div>
+        )}
+
+        {/* Status Info */}
+        {contractQuest?.status === 2 && (
+          <div className="p-4 bg-green-50/20 backdrop-blur-sm rounded-lg border border-green-200/30">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-green-700 font-medium">Quest Completed & Payment Released</span>
+            </div>
+            <p className="text-sm text-green-600 mt-1">
+              Completed on:{" "}
+              {contractQuest.completedAt
+                ? new Date(Number(contractQuest.completedAt) * 1000).toLocaleDateString()
+                : "N/A"}
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleSubmit = async () => {
@@ -386,49 +617,14 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           </p>
                         )}
                       </div>
-                    ) : isQuestOpen && !isQuestCreator ? (
-                      /* Open Quest - Photographer can accept */
+                    ) : canSubmit ? (
+                      /* Quest accepts submissions - Photographer can submit directly */
                       <div className="space-y-4">
                         <div className="text-center py-4">
                           <Camera className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Accept This Quest</h4>
+                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Submit to This Quest</h4>
                           <p className="text-gray-700 mb-4">
-                            This quest is available for photographers. Accept it to start working and submit your photo.
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={handleSubmit}
-                          disabled={isSubmitting || !selectedFile}
-                          className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>{uploadProgress || "Accepting Quest..."}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Camera className="w-5 h-5" />
-                              <span>Accept Quest & Start Working</span>
-                            </>
-                          )}
-                        </button>
-
-                        <div className="p-3 bg-green-50/20 border border-green-200/30 rounded-lg">
-                          <p className="text-sm text-green-800">
-                            <strong>Note:</strong> By accepting this quest, you commit to delivering a photo that meets
-                            the requirements before the deadline.
-                          </p>
-                        </div>
-                      </div>
-                    ) : isQuestCompleted ? (
-                      /* Accepted Quest - Photographer can submit photo */
-                      <div className="space-y-4">
-                        <div className="text-center py-2">
-                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Submit Your Photo</h4>
-                          <p className="text-gray-700 mb-4">
-                            You've accepted this quest. Upload your photo to complete the submission.
+                            This quest is accepting submissions. Upload and submit your photo to participate.
                           </p>
                         </div>
 
@@ -469,59 +665,52 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           </div>
                         )}
 
-                        {/* Camera Option */}
-                        <div>
-                          <button
-                            onClick={() => {
-                              // TODO: Implement camera capture
-                              toast("Camera feature coming soon!", {
-                                icon: "📷",
-                              });
-                            }}
-                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                          >
-                            <Camera className="w-5 h-5 text-gray-600" />
-                            <span className="text-gray-700 font-medium">Take Photo with Camera</span>
-                          </button>
-                        </div>
-
                         {/* Submit Button */}
                         <button
                           onClick={handleSubmit}
                           disabled={isSubmitting || !selectedFile}
-                          className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmitting ? (
                             <>
                               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>{uploadProgress || "Processing..."}</span>
+                              <span>{uploadProgress || "Submitting..."}</span>
                             </>
                           ) : (
                             <>
-                              <Upload className="w-5 h-5" />
-                              <span>Submit Photo to IPFS & Blockchain</span>
+                              <Camera className="w-5 h-5" />
+                              <span>Submit Photo to Quest</span>
                             </>
                           )}
                         </button>
 
-                        {/* Upload Info */}
-                        <div className="p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
-                          <p className="text-sm text-blue-800">
-                            <strong>Note:</strong> Your photo will be uploaded to IPFS and recorded on the blockchain.
-                            Make sure your photo meets the quest requirements before submitting.
+                        <div className="p-3 bg-green-50/20 border border-green-200/30 rounded-lg">
+                          <p className="text-sm text-green-800">
+                            <strong>Note:</strong> Your photo will be uploaded to IPFS and submitted to the quest. Make
+                            sure it meets the requirements before submitting.
                           </p>
                         </div>
                       </div>
-                    ) : contractQuest && contractQuest.status === 1 && !isQuestCreator ? (
-                      /* Quest has submissions */
+                    ) : hasCurrentUserSubmitted ? (
+                      /* User has already submitted */
+                      <div className="text-center py-8">
+                        <Award className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Submission Complete</h4>
+                        <p className="text-gray-700 mb-4">
+                          You have already submitted to this quest. Check the Submissions tab to view your submission.
+                        </p>
+                      </div>
+                    ) : contractQuest && contractQuest.submissionCount >= contractQuest.maxSubmissions ? (
+                      /* Quest has reached maximum submissions */
                       <div className="text-center py-8">
                         <Users className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Has Submissions</h4>
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Full</h4>
                         <p className="text-gray-700 mb-4">
-                          This quest has received submissions and is currently being reviewed.
+                          This quest has reached its maximum number of submissions ({contractQuest.maxSubmissions}).
                         </p>
                         <p className="text-sm text-orange-600">
-                          Submissions: {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}
+                          Submissions: {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}/
+                          {contractQuest?.maxSubmissions ? Number(contractQuest.maxSubmissions) : 0}
                         </p>
                       </div>
                     ) : contractQuest && contractQuest.status === 2 ? (
@@ -558,136 +747,167 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
               {activeTab === "submissions" && (
                 <div className="space-y-4">
-                  {isLoadingQuest ? (
+                  {isLoadingQuest || isLoadingSubmissions ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                       <span className="ml-3 text-gray-600">Loading submission data...</span>
                     </div>
-                  ) : hasSubmissions && userSubmission ? (
+                  ) : questSubmissions && questSubmissions.length > 0 ? (
                     <div className="space-y-4">
-                      {/* Submission Info */}
-                      <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Photo Submission</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Quest Submissions ({questSubmissions.length})
+                        </h3>
 
-                        <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
-                          {/* Photo Preview */}
-                          <div className="flex-shrink-0">
-                            {userSubmission.watermarkedPhotoIPFS ? (
-                              <div className="relative w-16 h-16">
-                                <img
-                                  src={getIPFSUrl(userSubmission.watermarkedPhotoIPFS)}
-                                  alt="Submitted photo"
-                                  className="w-16 h-16 object-cover rounded-lg"
-                                  onLoad={e => {
-                                    console.log("Image loaded successfully:", userSubmission.watermarkedPhotoIPFS);
-                                    // Hide loading overlay
-                                    const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
-                                    if (loadingOverlay) {
-                                      loadingOverlay.style.display = "none";
-                                    }
-                                  }}
-                                  onError={e => {
-                                    console.log("Image failed to load from:", e.currentTarget.src);
-                                    console.log("IPFS Hash:", userSubmission.watermarkedPhotoIPFS);
-
-                                    // Try multiple fallback gateways
-                                    const currentSrc = e.currentTarget.src;
-                                    const ipfsHash = userSubmission.watermarkedPhotoIPFS;
-
-                                    // List of IPFS gateways to try
-                                    const gateways = getIPFSGateways(ipfsHash);
-
-                                    // Find current gateway index and try next one
-                                    let nextGateway = null;
-                                    for (let i = 0; i < gateways.length; i++) {
-                                      if (currentSrc === gateways[i] && i < gateways.length - 1) {
-                                        nextGateway = gateways[i + 1];
-                                        break;
-                                      }
-                                    }
-
-                                    if (nextGateway) {
-                                      console.log("Trying next gateway:", nextGateway);
-                                      e.currentTarget.src = nextGateway;
-                                    } else {
-                                      // All gateways failed, use placeholder and hide loading
-                                      console.log("All IPFS gateways failed, using placeholder");
-                                      e.currentTarget.src =
-                                        "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=64&h=64&fit=crop";
-                                      const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
-                                      if (loadingOverlay) {
-                                        loadingOverlay.style.display = "none";
-                                      }
-                                    }
-                                  }}
-                                />
-                                {/* Loading overlay */}
-                                <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
-                                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <Camera className="w-6 h-6 text-gray-400" />
-                              </div>
-                            )}
+                        {/* Selection Controls for Quest Creator */}
+                        {isQuestCreator && contractQuest?.status === 1 && (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                if (selectedSubmissions.length === questSubmissions.length) {
+                                  setSelectedSubmissions([]);
+                                } else {
+                                  setSelectedSubmissions(questSubmissions.map((_, index) => index));
+                                }
+                              }}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              {selectedSubmissions.length === questSubmissions.length ? "Deselect All" : "Select All"}
+                            </button>
+                            <span className="text-sm text-gray-500">({selectedSubmissions.length} selected)</span>
                           </div>
-
-                          {/* Submission Details */}
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <span className="font-mono text-sm text-gray-800 font-semibold">
-                                {userSubmission.photographer}
-                              </span>
-                              <ExternalLink className="w-4 h-4 text-gray-600" />
-                            </div>
-                            <div className="text-sm text-gray-700 font-medium">
-                              Submitted: {new Date(Number(userSubmission.submittedAt) * 1000).toLocaleDateString()}
-                            </div>
-                            {userSubmission.watermarkedPhotoIPFS && (
-                              <div className="text-xs text-gray-600 mt-1">
-                                IPFS: {userSubmission.watermarkedPhotoIPFS.slice(0, 20)}...
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Approval Section - Only show to quest creator */}
-                      {isQuestCreator && contractQuest?.status === 2 && (
+                      {/* Display all submissions */}
+                      {questSubmissions.map((submission: any, index: number) => (
+                        <div
+                          key={index}
+                          className={`p-4 bg-white/20 backdrop-blur-sm rounded-lg border transition-all duration-200 ${
+                            isQuestCreator && contractQuest?.status === 1
+                              ? selectedSubmissions.includes(index)
+                                ? "border-blue-400 bg-blue-50/30"
+                                : "border-white/30 hover:border-blue-200"
+                              : "border-white/30"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
+                            {/* Selection Checkbox for Quest Creator */}
+                            {isQuestCreator && contractQuest?.status === 1 && (
+                              <div className="flex-shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSubmissions.includes(index)}
+                                  onChange={() => {
+                                    setSelectedSubmissions(prev =>
+                                      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index],
+                                    );
+                                  }}
+                                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                              </div>
+                            )}
+
+                            {/* Photo Preview */}
+                            <div className="flex-shrink-0">
+                              {submission.watermarkedPhotoIPFS ? (
+                                <div className="relative w-16 h-16">
+                                  <img
+                                    src={getIPFSUrl(submission.watermarkedPhotoIPFS)}
+                                    alt="Submitted photo"
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                    onError={e => {
+                                      // Fallback to placeholder on error
+                                      e.currentTarget.src =
+                                        "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=64&h=64&fit=crop";
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <Camera className="w-6 h-6 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Submission Details */}
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-mono text-sm text-gray-800 font-semibold">
+                                  {submission.photographer}
+                                </span>
+                                <ExternalLink className="w-4 h-4 text-gray-600" />
+                                {submission.isSelected && (
+                                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-700 font-medium">
+                                Submitted: {new Date(Number(submission.submittedAt) * 1000).toLocaleDateString()}
+                              </div>
+                              {submission.watermarkedPhotoIPFS && (
+                                <div className="text-xs text-gray-600 mt-1">
+                                  IPFS: {submission.watermarkedPhotoIPFS.slice(0, 20)}...
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Selection Actions - Only show to quest creator */}
+                      {isQuestCreator && contractQuest?.status === 1 && (
                         <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submission</h4>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submissions</h4>
                           <p className="text-sm text-gray-700 mb-4">
-                            Review the submitted photo and approve it to complete the quest and release payment to the
-                            photographer.
+                            Select the winning submissions to complete the quest and release payments. You can select
+                            multiple winners to share the reward.
                           </p>
 
                           <div className="flex space-x-3">
                             <button
-                              onClick={() => handleSelectSubmissions([0])} // For now, approve first submission
-                              disabled={isApproving}
+                              onClick={() => {
+                                if (selectedSubmissions.length > 0) {
+                                  handleSelectSubmissions(selectedSubmissions);
+                                }
+                              }}
+                              disabled={isApproving || selectedSubmissions.length === 0}
                               className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isApproving ? (
                                 <>
                                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Approving...</span>
+                                  <span>Processing...</span>
                                 </>
                               ) : (
                                 <>
                                   <Coins className="w-5 h-5" />
-                                  <span>Approve & Complete Quest</span>
+                                  <span>
+                                    {selectedSubmissions.length === 0
+                                      ? "Select Winners to Complete Quest"
+                                      : `Approve ${selectedSubmissions.length} Winner${selectedSubmissions.length > 1 ? "s" : ""} & Complete Quest`}
+                                  </span>
                                 </>
                               )}
                             </button>
                           </div>
 
-                          <p className="text-center text-sm text-gray-700 mt-2">Reward: {quest.reward}</p>
+                          {selectedSubmissions.length > 0 && (
+                            <div className="mt-3 p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                <strong>Reward Distribution:</strong> {quest.reward} will be split equally among{" "}
+                                {selectedSubmissions.length} winner{selectedSubmissions.length > 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          )}
+
+                          <p className="text-center text-sm text-gray-700 mt-2">Total Reward: {quest.reward}</p>
                         </div>
                       )}
 
                       {/* Status Info */}
-                      {contractQuest?.status === 3 && (
+                      {contractQuest?.status === 2 && (
                         <div className="p-4 bg-green-50/20 backdrop-blur-sm rounded-lg border border-green-200/30">
                           <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
