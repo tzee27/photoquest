@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useAccount } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import { getIPFSGateways, getIPFSUrl, uploadToIPFS, validateFile } from "~~/utils/pinata";
+import { WatermarkOverlay, getPhotoToDisplay } from "~~/utils/watermark";
 
 interface QuestDetailModalProps {
   quest: Quest;
@@ -325,31 +326,55 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
       setIsSubmitting(true);
       setUploadProgress("Preparing upload...");
 
+      // Import the watermarking function dynamically to avoid SSR issues
+      const { addWatermarkToImage } = await import("~~/utils/watermark");
+
+      // Create watermarked version
+      setUploadProgress("Adding watermark...");
+      const watermarkedFile = await addWatermarkToImage(selectedFile, {
+        text: "PhotoQuest",
+        opacity: 0.7,
+        position: "bottom-right",
+        fontSize: "16px",
+        color: "white",
+      });
+
       // Upload the original photo to IPFS
-      const uploadResult = await uploadToIPFS(selectedFile, {
-        name: `quest-${quest.id}-${selectedFile.name}`,
+      setUploadProgress("Uploading original photo...");
+      const originalUploadResult = await uploadToIPFS(selectedFile, {
+        name: `quest-${quest.id}-original-${selectedFile.name}`,
         keyValues: {
           questId: quest.id,
           photographer: connectedAddress || "",
-          type: "quest-submission",
+          type: "quest-submission-original",
         },
       });
 
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || "Failed to upload to IPFS");
+      if (!originalUploadResult.success) {
+        throw new Error(originalUploadResult.error || "Failed to upload original photo to IPFS");
       }
 
-      // For now, we'll use the same hash for both watermarked and original
-      // In a real implementation, you'd generate a watermarked version
-      const watermarkedHash = uploadResult.ipfsHash;
-      const originalHash = uploadResult.ipfsHash;
+      // Upload the watermarked photo to IPFS
+      setUploadProgress("Uploading watermarked photo...");
+      const watermarkedUploadResult = await uploadToIPFS(watermarkedFile, {
+        name: `quest-${quest.id}-watermarked-${selectedFile.name}`,
+        keyValues: {
+          questId: quest.id,
+          photographer: connectedAddress || "",
+          type: "quest-submission-watermarked",
+        },
+      });
+
+      if (!watermarkedUploadResult.success) {
+        throw new Error(watermarkedUploadResult.error || "Failed to upload watermarked photo to IPFS");
+      }
 
       setUploadProgress("Submitting to blockchain...");
 
-      // Submit to smart contract
+      // Submit to smart contract with both hashes
       await submitPhotoAsync({
         functionName: "submitPhoto",
-        args: [BigInt(quest.id), watermarkedHash, originalHash],
+        args: [BigInt(quest.id), watermarkedUploadResult.ipfsHash, originalUploadResult.ipfsHash],
       });
 
       toast.success("Photo submitted successfully!");
@@ -813,13 +838,29 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                               {submission.watermarkedPhotoIPFS ? (
                                 <div className="relative w-16 h-16">
                                   <img
-                                    src={getIPFSUrl(submission.watermarkedPhotoIPFS)}
+                                    src={getIPFSUrl(
+                                      getPhotoToDisplay(
+                                        "submission",
+                                        false,
+                                        submission.watermarkedPhotoIPFS,
+                                        submission.originalPhotoIPFS,
+                                      ),
+                                    )}
                                     alt="Submitted photo"
                                     className="w-16 h-16 object-cover rounded-lg"
                                     onError={e => {
                                       // Fallback to placeholder on error
                                       e.currentTarget.src =
                                         "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=64&h=64&fit=crop";
+                                    }}
+                                  />
+                                  {/* Watermark overlay for submissions */}
+                                  <WatermarkOverlay
+                                    config={{
+                                      text: "PQ",
+                                      fontSize: "8px",
+                                      opacity: 0.6,
+                                      position: "bottom-right",
                                     }}
                                   />
                                 </div>

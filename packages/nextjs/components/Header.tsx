@@ -29,6 +29,10 @@ export const menuLinks: HeaderMenuLink[] = [
     href: "/my-quests",
   },
   {
+    label: "Gallery",
+    href: "/gallery",
+  },
+  {
     label: "Leaderboard",
     href: "/leaderboard",
   },
