@@ -4,33 +4,16 @@ pragma solidity >=0.8.0 <0.9.0;
 // Useful for debugging. Remove when deploying to a live network.
 import "forge-std/console.sol";
 
-interface IPhotoQuestNFT {
-    function mintPhotoNFT(
-        uint256 questId,
-        address photographer,
-        address owner,
-        string memory title,
-        string memory description,
-        uint8 category,
-        string memory watermarkedImageIPFS,
-        string memory originalImageIPFS,
-        uint256 submittedAt,
-        uint256 royaltyFee
-    ) external returns (uint256);
-}
-
 /**
- * @title PhotoQuest Marketplace - Multi-Photographer Edition with NFT Integration
- * @dev A decentralized marketplace for photo requests with competitive submissions and NFT minting
+ * @title PhotoQuest Marketplace - Multi-Photographer Edition
+ * @dev A decentralized marketplace for photo requests with competitive submissions
  * @author PhotoQuest Team
  */
 contract YourContract {
     // State Variables
     address public immutable owner;
     uint256 public questCounter = 0;
-    uint256 public platformFeePercentage = 300; // 2.5% (250 basis points)
-    IPhotoQuestNFT public photoQuestNFT; // NFT contract interface
-    uint256 public defaultRoyaltyFee = 500; // 5% default royalty for photographers
+    uint256 public platformFeePercentage = 300; // 3% (300 basis points)
     
     // Enums
     enum QuestStatus { Open, HasSubmissions, Completed, Cancelled }
@@ -44,7 +27,6 @@ contract YourContract {
         uint256 submittedAt;
         bool isSelected;
         bool isPaid;
-        uint256 nftTokenId; // Associated NFT token ID (0 if no NFT minted)
     }
     
     struct Quest {
@@ -61,7 +43,6 @@ contract YourContract {
         uint256 selectedCount;
         uint256 createdAt;
         uint256 completedAt;
-        bool enableNFT; // Whether to mint NFTs for selected submissions
     }
     
     // Mappings
@@ -72,7 +53,6 @@ contract YourContract {
     mapping(address => uint256[]) public userQuests; // Quests created by user
     mapping(address => uint256[]) public photographerQuests; // Quests with submissions by photographer
     mapping(uint256 => bool) public questExists;
-    mapping(uint256 => uint256[]) public questNFTs; // Quest ID => NFT Token IDs minted for this quest
     
     // Events
     event QuestCreated(
@@ -82,8 +62,7 @@ contract YourContract {
         Category category,
         uint256 reward,
         uint256 deadline,
-        uint256 maxSubmissions,
-        bool enableNFT
+        uint256 maxSubmissions
     );
     
     event PhotoSubmitted(
@@ -110,14 +89,6 @@ contract YourContract {
         uint256 platformFee
     );
     
-    event NFTMinted(
-        uint256 indexed questId,
-        uint256 indexed submissionIndex,
-        uint256 indexed nftTokenId,
-        address photographer,
-        address owner
-    );
-    
     event QuestCancelled(
         uint256 indexed questId,
         address indexed requester,
@@ -125,8 +96,6 @@ contract YourContract {
     );
     
     event PlatformFeeUpdated(uint256 oldFee, uint256 newFee);
-    event NFTContractUpdated(address oldContract, address newContract);
-    event RoyaltyFeeUpdated(uint256 oldFee, uint256 newFee);
     
     // Modifiers
     modifier onlyOwner() {
@@ -176,15 +145,13 @@ contract YourContract {
      * @param _category Category of the photo
      * @param _deadline Deadline for photo submission (timestamp)
      * @param _maxSubmissions Maximum number of submissions allowed (default 10)
-     * @param _enableNFT Whether to enable NFT minting for this quest
      */
     function createQuest(
         string memory _title,
         string memory _description,
         Category _category,
         uint256 _deadline,
-        uint256 _maxSubmissions,
-        bool _enableNFT
+        uint256 _maxSubmissions
     ) external payable {
         require(msg.value > 0, "Reward must be greater than 0");
         require(_deadline > block.timestamp, "Deadline must be in the future");
@@ -208,14 +175,13 @@ contract YourContract {
             submissionCount: 0,
             selectedCount: 0,
             createdAt: block.timestamp,
-            completedAt: 0,
-            enableNFT: _enableNFT
+            completedAt: 0
         });
         
         questExists[questId] = true;
         userQuests[msg.sender].push(questId);
         
-        emit QuestCreated(questId, msg.sender, _title, _category, msg.value, _deadline, _maxSubmissions, _enableNFT);
+        emit QuestCreated(questId, msg.sender, _title, _category, msg.value, _deadline, _maxSubmissions);
     }
     
     /**
@@ -248,8 +214,7 @@ contract YourContract {
             originalPhotoIPFS: _originalPhotoIPFS,
             submittedAt: block.timestamp,
             isSelected: false,
-            isPaid: false,
-            nftTokenId: 0 // No NFT minted yet
+            isPaid: false
         });
         
         // Add submission to quest
@@ -323,33 +288,6 @@ contract YourContract {
             require(ownerSuccess, "Platform fee transfer failed");
         }
         
-        // Mint NFTs for selected submissions
-        if (quest.enableNFT) {
-            for (uint256 i = 0; i < _selectedSubmissionIndices.length; i++) {
-                uint256 index = _selectedSubmissionIndices[i];
-                address photographer = questSubmissions[_questId][index].photographer;
-                uint256 submissionIndex = _selectedSubmissionIndices[i]; // Use the original index
-                
-                uint256 nftTokenId = photoQuestNFT.mintPhotoNFT(
-                    _questId,
-                    photographer,
-                    quest.requester, // Owner is the requester
-                    quest.title,
-                    quest.description,
-                    uint8(quest.category),
-                    questSubmissions[_questId][index].watermarkedPhotoIPFS,
-                    questSubmissions[_questId][index].originalPhotoIPFS,
-                    questSubmissions[_questId][index].submittedAt,
-                    defaultRoyaltyFee // Use default royalty fee
-                );
-                
-                questSubmissions[_questId][index].nftTokenId = nftTokenId;
-                questNFTs[_questId].push(nftTokenId);
-                
-                emit NFTMinted(_questId, submissionIndex, nftTokenId, photographer, quest.requester);
-            }
-        }
-        
         // Update quest status
         quest.status = QuestStatus.Completed;
         quest.selectedCount = _selectedSubmissionIndices.length;
@@ -395,27 +333,6 @@ contract YourContract {
         platformFeePercentage = _newFeePercentage;
         
         emit PlatformFeeUpdated(oldFee, _newFeePercentage);
-    }
-
-    /**
-     * @dev Updates the NFT contract address (only owner)
-     * @param _newNFTContract New NFT contract address
-     */
-    function updateNFTContract(address _newNFTContract) external onlyOwner {
-        address oldContract = address(photoQuestNFT);
-        photoQuestNFT = IPhotoQuestNFT(_newNFTContract);
-        emit NFTContractUpdated(oldContract, _newNFTContract);
-    }
-
-    /**
-     * @dev Updates the default royalty fee (only owner)
-     * @param _newRoyaltyFee New royalty fee in basis points (e.g., 500 = 5%)
-     */
-    function updateRoyaltyFee(uint256 _newRoyaltyFee) external onlyOwner {
-        require(_newRoyaltyFee <= 1000, "Royalty fee cannot exceed 10%"); // Max 10%
-        uint256 oldFee = defaultRoyaltyFee;
-        defaultRoyaltyFee = _newRoyaltyFee;
-        emit RoyaltyFeeUpdated(oldFee, _newRoyaltyFee);
     }
     
     // View Functions
@@ -477,14 +394,6 @@ contract YourContract {
         }
         
         return selectedSubmissions;
-    }
-
-    /**
-     * @dev Get all NFT token IDs minted for a quest
-     * @param _questId ID of the quest
-     */
-    function getQuestNFTs(uint256 _questId) external view questExistsAndValid(_questId) returns (uint256[] memory) {
-        return questNFTs[_questId];
     }
     
     /**
@@ -548,33 +457,6 @@ contract YourContract {
         require(hasSubmitted[_questId][_photographer], "Photographer has not submitted to this quest");
         uint256 index = photographerSubmissionIndex[_questId][_photographer];
         return questSubmissions[_questId][index];
-    }
-
-    /**
-     * @dev Get NFT details for a specific submission
-     * @param _questId ID of the quest
-     * @param _submissionIndex Index of the submission within the quest
-     */
-    function getSubmissionNFT(uint256 _questId, uint256 _submissionIndex)
-        external
-        view
-        questExistsAndValid(_questId)
-        returns (uint256 nftTokenId, address photographer, address owner, string memory title, string memory description, uint8 category, string memory watermarkedImageIPFS, string memory originalImageIPFS, uint256 submittedAt, uint256 royaltyFee)
-    {
-        require(_submissionIndex < questSubmissions[_questId].length, "Invalid submission index");
-        Submission memory submission = questSubmissions[_questId][_submissionIndex];
-        Quest memory questData = quests[_questId];
-        
-        nftTokenId = submission.nftTokenId;
-        photographer = submission.photographer;
-        owner = questData.requester; // The quest requester is the NFT owner
-        title = questData.title;
-        description = questData.description;
-        category = uint8(questData.category);
-        watermarkedImageIPFS = submission.watermarkedPhotoIPFS;
-        originalImageIPFS = submission.originalPhotoIPFS;
-        submittedAt = submission.submittedAt;
-        royaltyFee = defaultRoyaltyFee;
     }
     
     /**
