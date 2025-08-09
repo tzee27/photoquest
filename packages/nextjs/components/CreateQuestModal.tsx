@@ -39,6 +39,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
     imageUrl: "",
     tags: "",
     category: "" as PhotoCategory | "",
+    enableNFT: true, // Default to enabled for new quests
   });
 
   const [isCreating, setIsCreating] = useState(false);
@@ -83,6 +84,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
         category: categoryEnum,
         deadline: deadlineTimestamp,
         maxSubmissions: parseInt(formData.maxSubmissions) || 10,
+        enableNFT: formData.enableNFT,
         value: rewardInWei.toString(),
       });
 
@@ -278,9 +280,37 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 onChange={handleChange}
                 required
                 disabled={isCreating}
-                min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} // Minimum 24 hours from now
                 className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white disabled:opacity-50"
+                min={new Date().toISOString().slice(0, 16)}
               />
+            </div>
+
+            {/* NFT Settings */}
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+              <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                <Image className="w-5 h-5 mr-2" />
+                NFT Settings
+              </h3>
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="enableNFT"
+                  name="enableNFT"
+                  checked={formData.enableNFT}
+                  onChange={handleChange}
+                  disabled={isCreating}
+                  className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                />
+                <div className="flex-1">
+                  <label htmlFor="enableNFT" className="text-sm font-medium text-gray-200 cursor-pointer">
+                    Enable NFT Minting
+                  </label>
+                  <p className="text-xs text-gray-300 mt-1">
+                    When enabled, selected submissions will be automatically minted as NFTs with 5% royalties for
+                    photographers. Quest requesters will own the NFTs and gain access to original photos.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Tags */}
