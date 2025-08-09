@@ -108,7 +108,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-4xl bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl max-h-[90vh] overflow-hidden"
+          className="relative w-full max-w-4xl bg-neutral-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-h-[90vh] overflow-hidden"
         >
           {/* Header */}
           <div className="relative h-64 overflow-hidden">
@@ -182,9 +182,9 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <div className="flex items-center space-x-2 mb-2">
                         <Users className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium text-gray-800">Submissions</span>
+                        <span className="font-medium text-gray-200">Submissions</span>
                       </div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-white">
                         {quest.submissions}/{quest.maxSubmissions}
                       </div>
                     </div>
@@ -192,9 +192,9 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <div className="flex items-center space-x-2 mb-2">
                         <Calendar className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-gray-800">Deadline</span>
+                        <span className="font-medium text-gray-200">Deadline</span>
                       </div>
-                      <div className="text-lg font-bold text-gray-900">
+                      <div className="text-lg font-bold text-white">
                         {new Date(quest.deadline).toLocaleDateString()}
                       </div>
                     </div>
@@ -202,15 +202,15 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                       <div className="flex items-center space-x-2 mb-2">
                         <Award className="w-5 h-5 text-yellow-600" />
-                        <span className="font-medium text-gray-800">Creator</span>
+                        <span className="font-medium text-gray-200">Creator</span>
                       </div>
-                      <div className="text-sm font-mono text-gray-900 font-semibold">{quest.creator}</div>
+                      <div className="text-sm font-mono text-gray-100 font-semibold break-all">{quest.creator}</div>
                     </div>
                   </div>
 
                   {/* Tags */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
+                    <h3 className="text-lg font-semibold text-white mb-3">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {quest.tags.map(tag => (
                         <span
@@ -226,13 +226,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                   {/* Submit Section */}
                   <div className="p-6 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Photo</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">Submit Your Photo</h3>
 
                     {!isConnected ? (
                       <div className="text-center py-8">
-                        <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Login Required</h4>
-                        <p className="text-gray-700 mb-4">
+                        <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-100 mb-2">Login Required</h4>
+                        <p className="text-gray-300 mb-4">
                           You need to connect your wallet to submit photos to this quest.
                         </p>
                         <button
@@ -246,8 +246,8 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <div className="space-y-4">
                         <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-white/10">
                           <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                          <p className="text-gray-800 mb-2 font-medium">Upload your photo submission</p>
-                          <p className="text-sm text-gray-600">JPG, PNG up to 10MB</p>
+                          <p className="text-gray-100 mb-2 font-medium">Upload your photo submission</p>
+                          <p className="text-sm text-gray-300">JPG, PNG up to 10MB</p>
                         </div>
 
                         <button
@@ -284,14 +284,14 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       >
                         {selectedSubmissions.length === mockSubmissions.length ? "Deselect All" : "Select All"}
                       </button>
-                      <span className="text-gray-800 font-medium">
+                      <span className="text-gray-100 font-medium">
                         {selectedSubmissions.length} of {mockSubmissions.length} selected
                       </span>
                     </div>
 
                     {selectedSubmissions.length > 0 && (
                       <div className="text-right">
-                        <div className="text-sm text-gray-700">Reward per photographer:</div>
+                        <div className="text-sm text-gray-300">Reward per photographer:</div>
                         <div className="text-lg font-bold text-green-600">{rewardPerPhotographer.toFixed(3)} ETH</div>
                       </div>
                     )}
@@ -324,12 +324,12 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       {/* Info */}
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-mono text-sm text-gray-800 font-semibold">
+                          <span className="font-mono text-sm text-gray-100 font-semibold">
                             {submission.photographer}
                           </span>
                           <ExternalLink className="w-4 h-4 text-gray-600" />
                         </div>
-                        <div className="text-sm text-gray-700 font-medium">
+                        <div className="text-sm text-gray-300 font-medium">
                           {new Date(submission.timestamp).toLocaleDateString()}
                         </div>
                       </div>
@@ -371,7 +371,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           </>
                         )}
                       </button>
-                      <p className="text-center text-sm text-gray-700 mt-2">
+                      <p className="text-center text-sm text-gray-300 mt-2">
                         Total: {quest.reward} • {rewardPerPhotographer.toFixed(3)} ETH per photographer
                       </p>
                     </div>

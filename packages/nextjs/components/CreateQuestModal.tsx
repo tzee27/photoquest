@@ -146,20 +146,20 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-2xl bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl max-h-[90vh] overflow-y-auto"
+          className="relative w-full max-w-2xl bg-neutral-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/20">
-            <h2 className="text-2xl font-bold text-gray-900">Create New Quest</h2>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-gray-600" />
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <h2 className="text-2xl font-bold text-white">Create New Quest</h2>
+            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-gray-300" />
             </button>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mx-6 mt-4 p-4 bg-red-100 border border-red-300 rounded-lg">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="mx-6 mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-red-300 text-sm">{error}</p>
             </div>
           )}
 
@@ -167,7 +167,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quest Title</label>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Quest Title</label>
               <input
                 type="text"
                 name="title"
@@ -175,14 +175,14 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 onChange={handleChange}
                 required
                 disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
                 placeholder="Enter quest title..."
               />
             </div>
 
             {/* Category Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 <Camera className="w-4 h-4 inline mr-2" />
                 Photography Category
               </label>
@@ -192,7 +192,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 onChange={handleChange}
                 required
                 disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white disabled:opacity-50"
               >
                 <option value="">Select a category...</option>
                 {PHOTO_CATEGORIES.map(category => (
@@ -205,7 +205,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Description</label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -213,14 +213,14 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 required
                 rows={4}
                 disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 resize-none disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 resize-none disabled:opacity-50"
                 placeholder="Describe your photography challenge..."
               />
             </div>
 
             {/* Image URL */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 <Image className="w-4 h-4 inline mr-2" />
                 Cover Image URL (optional)
               </label>
@@ -230,7 +230,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 value={formData.imageUrl}
                 onChange={handleChange}
                 disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
                 placeholder="https://images.unsplash.com/..."
               />
             </div>
@@ -238,7 +238,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
             {/* Reward and Max Submissions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-200 mb-2">
                   <Coins className="w-4 h-4 inline mr-2" />
                   Reward (ETH)
                 </label>
@@ -251,14 +251,14 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                   onChange={handleChange}
                   required
                   disabled={isCreating}
-                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
                   placeholder="0.1"
                 />
-                <p className="text-xs text-gray-600 mt-1">Minimum: 0.001 ETH</p>
+                <p className="text-xs text-gray-300 mt-1">Minimum: 0.001 ETH</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-200 mb-2">
                   <Users className="w-4 h-4 inline mr-2" />
                   Max Submissions (optional)
                 </label>
@@ -269,7 +269,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                   onChange={handleChange}
                   min="1"
                   disabled={isCreating}
-                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                  className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
                   placeholder="50"
                 />
               </div>
@@ -277,7 +277,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
 
             {/* Deadline */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 <Calendar className="w-4 h-4 inline mr-2" />
                 Deadline
               </label>
@@ -289,13 +289,13 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 required
                 disabled={isCreating}
                 min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} // Minimum 24 hours from now
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white disabled:opacity-50"
               />
             </div>
 
             {/* Tags */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 <Tag className="w-4 h-4 inline mr-2" />
                 Tags (comma-separated)
               </label>
@@ -305,18 +305,18 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 value={formData.tags}
                 onChange={handleChange}
                 disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
                 placeholder="photography, nature, landscape"
               />
             </div>
 
             {/* Submit Button */}
-            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-white/20">
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-white/10">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isCreating}
-                className="px-6 py-3 text-gray-700 hover:bg-white/20 rounded-lg transition-colors font-medium disabled:opacity-50"
+                className="px-6 py-3 text-gray-200 hover:bg-white/10 rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -331,7 +331,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
             </div>
 
             {!connectedAddress && (
-              <p className="text-center text-sm text-gray-600">Please connect your wallet to create a quest</p>
+              <p className="text-center text-sm text-gray-300">Please connect your wallet to create a quest</p>
             )}
           </form>
         </motion.div>
