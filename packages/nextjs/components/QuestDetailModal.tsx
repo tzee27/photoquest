@@ -314,14 +314,9 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <Users className="w-5 h-5 text-blue-600" />
                         <span className="font-medium text-gray-200">Submissions</span>
                       </div>
-<<<<<<< Updated upstream
-                      <div className="text-2xl font-bold text-white">
-                        {quest.submissions}/{quest.maxSubmissions}
-=======
                       <div className="text-2xl font-bold text-gray-900">
                         {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}/
                         {contractQuest?.maxSubmissions ? Number(contractQuest.maxSubmissions) : 10}
->>>>>>> Stashed changes
                       </div>
                     </div>
 
@@ -330,13 +325,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <Calendar className="w-5 h-5 text-green-600" />
                         <span className="font-medium text-gray-200">Deadline</span>
                       </div>
-<<<<<<< Updated upstream
-                      <div className="text-lg font-bold text-white">
-                        {new Date(quest.deadline).toLocaleDateString()}
-                      </div>
-=======
                       <div className="text-lg font-bold text-gray-900">{getDeadlineText()}</div>
->>>>>>> Stashed changes
                     </div>
 
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
@@ -366,16 +355,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                   {/* Submit Section */}
                   <div className="p-6 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-<<<<<<< Updated upstream
-                    <h3 className="text-lg font-semibold text-white mb-4">Submit Your Photo</h3>
-
-                    {!isConnected ? (
-                      <div className="text-center py-8">
-                        <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-100 mb-2">Login Required</h4>
-                        <p className="text-gray-300 mb-4">
-                          You need to connect your wallet to submit photos to this quest.
-=======
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Quest Actions</h3>
 
                     {!isConnected ? (
@@ -384,7 +363,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <h4 className="text-lg font-semibold text-gray-800 mb-2">Login Required</h4>
                         <p className="text-gray-700 mb-4">
                           You need to connect your wallet to interact with this quest.
->>>>>>> Stashed changes
                         </p>
                         <button
                           onClick={onLoginRequired}
@@ -411,19 +389,12 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                     ) : isQuestOpen && !isQuestCreator ? (
                       /* Open Quest - Photographer can accept */
                       <div className="space-y-4">
-<<<<<<< Updated upstream
-                        <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-white/10">
-                          <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                          <p className="text-gray-100 mb-2 font-medium">Upload your photo submission</p>
-                          <p className="text-sm text-gray-300">JPG, PNG up to 10MB</p>
-=======
                         <div className="text-center py-4">
                           <Camera className="w-12 h-12 text-green-500 mx-auto mb-4" />
                           <h4 className="text-lg font-semibold text-gray-800 mb-2">Accept This Quest</h4>
                           <p className="text-gray-700 mb-4">
                             This quest is available for photographers. Accept it to start working and submit your photo.
                           </p>
->>>>>>> Stashed changes
                         </div>
 
                         <button
@@ -587,25 +558,10 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
               {activeTab === "submissions" && (
                 <div className="space-y-4">
-<<<<<<< Updated upstream
-                  {/* Selection Controls */}
-                  <div className="flex items-center justify-between p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-                    <div className="flex items-center space-x-4">
-                      <button
-                        onClick={handleSelectAll}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                      >
-                        {selectedSubmissions.length === mockSubmissions.length ? "Deselect All" : "Select All"}
-                      </button>
-                      <span className="text-gray-100 font-medium">
-                        {selectedSubmissions.length} of {mockSubmissions.length} selected
-                      </span>
-=======
                   {isLoadingQuest ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                       <span className="ml-3 text-gray-600">Loading submission data...</span>
->>>>>>> Stashed changes
                     </div>
                   ) : hasSubmissions && userSubmission ? (
                     <div className="space-y-4">
@@ -613,15 +569,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                         <h3 className="text-lg font-semibold text-gray-900 mb-3">Photo Submission</h3>
 
-<<<<<<< Updated upstream
-                    {selectedSubmissions.length > 0 && (
-                      <div className="text-right">
-                        <div className="text-sm text-gray-300">Reward per photographer:</div>
-                        <div className="text-lg font-bold text-green-600">{rewardPerPhotographer.toFixed(3)} ETH</div>
-                      </div>
-                    )}
-                  </div>
-=======
                         <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
                           {/* Photo Preview */}
                           <div className="flex-shrink-0">
@@ -642,7 +589,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                                   onError={e => {
                                     console.log("Image failed to load from:", e.currentTarget.src);
                                     console.log("IPFS Hash:", userSubmission.watermarkedPhotoIPFS);
->>>>>>> Stashed changes
 
                                     // Try multiple fallback gateways
                                     const currentSrc = e.currentTarget.src;
@@ -651,20 +597,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                                     // List of IPFS gateways to try
                                     const gateways = getIPFSGateways(ipfsHash);
 
-<<<<<<< Updated upstream
-                      {/* Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="font-mono text-sm text-gray-100 font-semibold">
-                            {submission.photographer}
-                          </span>
-                          <ExternalLink className="w-4 h-4 text-gray-600" />
-                        </div>
-                        <div className="text-sm text-gray-300 font-medium">
-                          {new Date(submission.timestamp).toLocaleDateString()}
-                        </div>
-                      </div>
-=======
                                     // Find current gateway index and try next one
                                     let nextGateway = null;
                                     for (let i = 0; i < gateways.length; i++) {
@@ -673,7 +605,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                                         break;
                                       }
                                     }
->>>>>>> Stashed changes
 
                                     if (nextGateway) {
                                       console.log("Trying next gateway:", nextGateway);
@@ -771,32 +702,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         </div>
                       )}
                     </div>
-<<<<<<< Updated upstream
-                  ))}
-
-                  {/* Confirm Button */}
-                  {selectedSubmissions.length > 0 && (
-                    <div className="sticky bottom-0 p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
-                      <button
-                        onClick={handleConfirmSelection}
-                        disabled={isConfirming}
-                        className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isConfirming ? (
-                          <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Distributing Rewards...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Coins className="w-5 h-5" />
-                            <span>Confirm & Distribute Rewards ({selectedSubmissions.length} photographers)</span>
-                          </>
-                        )}
-                      </button>
-                      <p className="text-center text-sm text-gray-300 mt-2">
-                        Total: {quest.reward} • {rewardPerPhotographer.toFixed(3)} ETH per photographer
-=======
                   ) : (
                     <div className="text-center py-12">
                       <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -805,7 +710,6 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <h3 className="text-xl font-semibold text-gray-700 mb-2">No Submissions Yet</h3>
                       <p className="text-gray-500 mb-4">
                         This quest is waiting for photographers to submit their work.
->>>>>>> Stashed changes
                       </p>
                       {contractQuest?.status === 0 && (
                         <p className="text-sm text-blue-600">Quest is open and accepting photographers.</p>

@@ -225,26 +225,6 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
               />
             </div>
 
-<<<<<<< Updated upstream
-            {/* Image URL */}
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                <Image className="w-4 h-4 inline mr-2" />
-                Cover Image URL (optional)
-              </label>
-              <input
-                type="url"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
-                disabled={isCreating}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 disabled:opacity-50"
-                placeholder="https://images.unsplash.com/..."
-              />
-            </div>
-
-=======
->>>>>>> Stashed changes
             {/* Reward and Max Submissions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
