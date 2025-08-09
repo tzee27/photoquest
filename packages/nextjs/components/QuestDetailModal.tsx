@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { Quest } from "../types";
 import { AnimatePresence, motion } from "framer-motion";
 import { Award, Calendar, Camera, Clock, Coins, ExternalLink, Lock, Tag, Upload, Users, X } from "lucide-react";
+import toast from "react-hot-toast";
+import { useAccount } from "wagmi";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { getIPFSGateways, getIPFSUrl, uploadToIPFS, validateFile } from "~~/utils/pinata";
 
 interface QuestDetailModalProps {
   quest: Quest;
@@ -13,8 +17,49 @@ interface QuestDetailModalProps {
 const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isConnected, onLoginRequired }) => {
   const [activeTab, setActiveTab] = useState<"details" | "submissions">("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<string>("");
+
+  const { address: connectedAddress } = useAccount();
+
+  // Fetch the complete quest data from the smart contract
+  const { data: contractQuest, isLoading: isLoadingQuest } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getQuest",
+    args: [BigInt(quest.id)],
+  });
+
+  // Fetch quest submissions
+  const { data: questSubmissions, isLoading: isLoadingSubmissions } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getQuestSubmissions",
+    args: [BigInt(quest.id)],
+  });
+
+  // Check if current user has submitted to this quest
+  const { data: hasUserSubmitted } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "hasPhotographerSubmitted",
+    args: [BigInt(quest.id), connectedAddress || "0x0"],
+  });
+
+  // Get current user's submission if they have one
+  const { data: userSubmission } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getPhotographerSubmission",
+    args: [BigInt(quest.id), connectedAddress || "0x0"],
+  });
+
+  // Smart contract write functions
+  const { writeContractAsync: submitPhotoAsync } = useScaffoldWriteContract({
+    contractName: "YourContract",
+  });
+
+  const { writeContractAsync: selectSubmissionsAsync } = useScaffoldWriteContract({
+    contractName: "YourContract",
+  });
 
   const formatDeadline = (deadline: string) => {
     const date = new Date(deadline);
@@ -34,62 +79,147 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
       return;
     }
 
-    setIsSubmitting(true);
-    // Simulate submission process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-    // Show success message or handle submission
-  };
+    if (!selectedFile) {
+      toast.error("Please select a photo to upload");
+      return;
+    }
 
-  const handleSubmissionToggle = (submissionId: string) => {
-    setSelectedSubmissions(prev =>
-      prev.includes(submissionId) ? prev.filter(id => id !== submissionId) : [...prev, submissionId],
-    );
-  };
+    // Validate file
+    if (!validateFile(selectedFile)) {
+      toast.error("Invalid file format or size. Please upload a JPEG, PNG, or WebP image under 10MB.");
+      return;
+    }
 
-  const handleSelectAll = () => {
-    if (selectedSubmissions.length === mockSubmissions.length) {
-      setSelectedSubmissions([]);
-    } else {
-      setSelectedSubmissions(mockSubmissions.map(s => s.id));
+    try {
+      setIsSubmitting(true);
+      setUploadProgress("Preparing upload...");
+
+      // Upload the original photo to IPFS
+      const uploadResult = await uploadToIPFS(selectedFile, {
+        name: `quest-${quest.id}-${selectedFile.name}`,
+        keyValues: {
+          questId: quest.id,
+          photographer: connectedAddress || "",
+          type: "quest-submission",
+        },
+      });
+
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || "Failed to upload to IPFS");
+      }
+
+      // For now, we'll use the same hash for both watermarked and original
+      // In a real implementation, you'd generate a watermarked version
+      const watermarkedHash = uploadResult.ipfsHash;
+      const originalHash = uploadResult.ipfsHash;
+
+      setUploadProgress("Submitting to blockchain...");
+
+      // Submit to smart contract
+      await submitPhotoAsync({
+        functionName: "submitPhoto",
+        args: [BigInt(quest.id), watermarkedHash, originalHash],
+      });
+
+      toast.success("Photo submitted successfully!");
+      setSelectedFile(null);
+      setPreviewUrl("");
+      onClose();
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast.error(error.message || "Failed to submit photo");
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress("");
     }
   };
 
-  const handleConfirmSelection = async () => {
-    if (selectedSubmissions.length === 0) return;
+  const handleSelectSubmissions = async (selectedIndices: number[]) => {
+    if (!contractQuest || !connectedAddress) return;
 
-    setIsConfirming(true);
-    // TODO: Implement smart contract call to distribute rewards
-    console.log("Distributing rewards to:", selectedSubmissions);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsConfirming(false);
-    // Show success message and close modal
-    onClose();
+    try {
+      setIsApproving(true);
+      await selectSubmissionsAsync({
+        functionName: "selectSubmissions",
+        args: [BigInt(quest.id), selectedIndices.map(i => BigInt(i))],
+      });
+      toast.success("Submissions selected successfully!");
+      onClose();
+    } catch (error: any) {
+      console.error("Selection error:", error);
+      toast.error(error.message || "Failed to select submissions");
+    } finally {
+      setIsApproving(false);
+    }
   };
 
-  const rewardPerPhotographer =
-    selectedSubmissions.length > 0 ? parseFloat(quest.reward.replace(" ETH", "")) / selectedSubmissions.length : 0;
+  // Determine if user is the quest creator
+  const isQuestCreator =
+    contractQuest && connectedAddress && contractQuest.requester.toLowerCase() === connectedAddress.toLowerCase();
 
-  const mockSubmissions = [
-    {
-      id: "1",
-      photographer: "0xabcd...1234",
-      imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=300&fit=crop",
-      timestamp: "2024-01-15T10:30:00Z",
-    },
-    {
-      id: "2",
-      photographer: "0xefgh...5678",
-      imageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=300&fit=crop",
-      timestamp: "2024-01-14T15:45:00Z",
-    },
-    {
-      id: "3",
-      photographer: "0xijkl...9012",
-      imageUrl: "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=300&h=300&fit=crop",
-      timestamp: "2024-01-13T09:20:00Z",
-    },
-  ];
+  // Check quest status - Updated for new enum values
+  const isQuestOpen = contractQuest && contractQuest.status === 0; // QuestStatus.Open
+  const hasSubmissions = contractQuest && contractQuest.status === 1; // QuestStatus.HasSubmissions
+  const isQuestCompleted = contractQuest && contractQuest.status === 2; // QuestStatus.Completed
+  const isQuestCancelled = contractQuest && contractQuest.status === 3; // QuestStatus.Cancelled
+
+  // Check if current user has submitted
+  const hasCurrentUserSubmitted = hasUserSubmitted && userSubmission;
+
+  // Check if quest accepts submissions
+  const canSubmit = (isQuestOpen || hasSubmissions) && !hasCurrentUserSubmitted && !isQuestCreator;
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file immediately
+      if (!validateFile(file)) {
+        toast.error("Invalid file format or size. Please upload a JPEG, PNG, or WebP image under 10MB.");
+        return;
+      }
+
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl("");
+    }
+  };
+
+  // Get status display text
+  const getStatusText = () => {
+    if (!contractQuest) return "Loading...";
+
+    switch (contractQuest.status) {
+      case 0:
+        return "Open";
+      case 1:
+        return "Has Submissions";
+      case 2:
+        return "Completed";
+      case 3:
+        return "Cancelled";
+      default:
+        return "Unknown";
+    }
+  };
+
+  // Format deadline for display
+  const getDeadlineText = () => {
+    if (!contractQuest) return "Loading...";
+
+    const deadlineDate = new Date(Number(contractQuest.deadline) * 1000);
+    const now = new Date();
+    const isExpired = deadlineDate < now;
+
+    return isExpired ? "Expired" : deadlineDate.toLocaleDateString();
+  };
 
   return (
     <AnimatePresence>
@@ -169,7 +299,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                     : "text-gray-600 hover:text-gray-900 hover:bg-white/5"
                 }`}
               >
-                Submissions ({quest.submissions})
+                Photo Status {hasSubmissions ? "(Submitted)" : "(Pending)"}
               </button>
             </div>
 
@@ -184,8 +314,14 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <Users className="w-5 h-5 text-blue-600" />
                         <span className="font-medium text-gray-200">Submissions</span>
                       </div>
+<<<<<<< Updated upstream
                       <div className="text-2xl font-bold text-white">
                         {quest.submissions}/{quest.maxSubmissions}
+=======
+                      <div className="text-2xl font-bold text-gray-900">
+                        {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}/
+                        {contractQuest?.maxSubmissions ? Number(contractQuest.maxSubmissions) : 10}
+>>>>>>> Stashed changes
                       </div>
                     </div>
 
@@ -194,9 +330,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <Calendar className="w-5 h-5 text-green-600" />
                         <span className="font-medium text-gray-200">Deadline</span>
                       </div>
+<<<<<<< Updated upstream
                       <div className="text-lg font-bold text-white">
                         {new Date(quest.deadline).toLocaleDateString()}
                       </div>
+=======
+                      <div className="text-lg font-bold text-gray-900">{getDeadlineText()}</div>
+>>>>>>> Stashed changes
                     </div>
 
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
@@ -226,6 +366,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                   {/* Submit Section */}
                   <div className="p-6 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+<<<<<<< Updated upstream
                     <h3 className="text-lg font-semibold text-white mb-4">Submit Your Photo</h3>
 
                     {!isConnected ? (
@@ -234,39 +375,210 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                         <h4 className="text-lg font-semibold text-gray-100 mb-2">Login Required</h4>
                         <p className="text-gray-300 mb-4">
                           You need to connect your wallet to submit photos to this quest.
+=======
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quest Actions</h3>
+
+                    {!isConnected ? (
+                      <div className="text-center py-8">
+                        <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Login Required</h4>
+                        <p className="text-gray-700 mb-4">
+                          You need to connect your wallet to interact with this quest.
+>>>>>>> Stashed changes
                         </p>
                         <button
                           onClick={onLoginRequired}
                           className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                         >
-                          Connect Wallet to Submit
+                          Connect Wallet
                         </button>
                       </div>
-                    ) : (
+                    ) : isQuestCreator ? (
+                      /* Quest Creator View */
+                      <div className="text-center py-8">
+                        <Award className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Quest</h4>
+                        <p className="text-gray-700 mb-4">
+                          This is your quest. You can monitor submissions and approve completed work in the Submissions
+                          tab.
+                        </p>
+                        {isQuestOpen && (
+                          <p className="text-sm text-blue-600">
+                            Quest is open and waiting for photographers to accept.
+                          </p>
+                        )}
+                      </div>
+                    ) : isQuestOpen && !isQuestCreator ? (
+                      /* Open Quest - Photographer can accept */
                       <div className="space-y-4">
+<<<<<<< Updated upstream
                         <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-white/10">
                           <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                           <p className="text-gray-100 mb-2 font-medium">Upload your photo submission</p>
                           <p className="text-sm text-gray-300">JPG, PNG up to 10MB</p>
+=======
+                        <div className="text-center py-4">
+                          <Camera className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Accept This Quest</h4>
+                          <p className="text-gray-700 mb-4">
+                            This quest is available for photographers. Accept it to start working and submit your photo.
+                          </p>
+>>>>>>> Stashed changes
                         </div>
 
                         <button
                           onClick={handleSubmit}
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || !selectedFile}
+                          className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>{uploadProgress || "Accepting Quest..."}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="w-5 h-5" />
+                              <span>Accept Quest & Start Working</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div className="p-3 bg-green-50/20 border border-green-200/30 rounded-lg">
+                          <p className="text-sm text-green-800">
+                            <strong>Note:</strong> By accepting this quest, you commit to delivering a photo that meets
+                            the requirements before the deadline.
+                          </p>
+                        </div>
+                      </div>
+                    ) : isQuestCompleted ? (
+                      /* Accepted Quest - Photographer can submit photo */
+                      <div className="space-y-4">
+                        <div className="text-center py-2">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Submit Your Photo</h4>
+                          <p className="text-gray-700 mb-4">
+                            You've accepted this quest. Upload your photo to complete the submission.
+                          </p>
+                        </div>
+
+                        {/* File Upload Area */}
+                        {!selectedFile ? (
+                          <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-white/10">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                              id="photo-upload"
+                            />
+                            <label htmlFor="photo-upload" className="cursor-pointer">
+                              <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                              <p className="text-gray-800 mb-2 font-medium">Upload your photo submission</p>
+                              <p className="text-sm text-gray-600">JPG, PNG, GIF, WebP up to 10MB</p>
+                            </label>
+                          </div>
+                        ) : (
+                          /* File Preview */
+                          <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50/20">
+                            <div className="flex items-center space-x-4">
+                              <img src={previewUrl} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-800">{selectedFile.name}</p>
+                                <p className="text-sm text-gray-600">
+                                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                                </p>
+                              </div>
+                              <button
+                                onClick={handleRemoveFile}
+                                className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                              >
+                                <X className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Camera Option */}
+                        <div>
+                          <button
+                            onClick={() => {
+                              // TODO: Implement camera capture
+                              toast("Camera feature coming soon!", {
+                                icon: "📷",
+                              });
+                            }}
+                            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                          >
+                            <Camera className="w-5 h-5 text-gray-600" />
+                            <span className="text-gray-700 font-medium">Take Photo with Camera</span>
+                          </button>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                          onClick={handleSubmit}
+                          disabled={isSubmitting || !selectedFile}
                           className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isSubmitting ? (
                             <>
                               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Uploading to IPFS...</span>
+                              <span>{uploadProgress || "Processing..."}</span>
                             </>
                           ) : (
                             <>
                               <Upload className="w-5 h-5" />
-                              <span>Submit Photo</span>
+                              <span>Submit Photo to IPFS & Blockchain</span>
                             </>
                           )}
                         </button>
+
+                        {/* Upload Info */}
+                        <div className="p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>Note:</strong> Your photo will be uploaded to IPFS and recorded on the blockchain.
+                            Make sure your photo meets the quest requirements before submitting.
+                          </p>
+                        </div>
+                      </div>
+                    ) : contractQuest && contractQuest.status === 1 && !isQuestCreator ? (
+                      /* Quest has submissions */
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Has Submissions</h4>
+                        <p className="text-gray-700 mb-4">
+                          This quest has received submissions and is currently being reviewed.
+                        </p>
+                        <p className="text-sm text-orange-600">
+                          Submissions: {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}
+                        </p>
+                      </div>
+                    ) : contractQuest && contractQuest.status === 2 ? (
+                      /* Quest submitted */
+                      <div className="text-center py-8">
+                        <Clock className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Submission Complete</h4>
+                        <p className="text-gray-700 mb-4">
+                          The photographer has submitted their work and it's awaiting approval.
+                        </p>
+                        <p className="text-sm text-blue-600">Check the Submissions tab to view the submitted photo.</p>
+                      </div>
+                    ) : contractQuest && contractQuest.status >= 3 ? (
+                      /* Quest completed */
+                      <div className="text-center py-8">
+                        <Award className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Completed</h4>
+                        <p className="text-gray-700 mb-4">
+                          This quest has been completed and the photographer has been paid.
+                        </p>
+                        <p className="text-sm text-green-600">View the final submission in the Submissions tab.</p>
+                      </div>
+                    ) : (
+                      /* Fallback */
+                      <div className="text-center py-8">
+                        <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Not Available</h4>
+                        <p className="text-gray-700">This quest is not available for interaction at the moment.</p>
                       </div>
                     )}
                   </div>
@@ -275,6 +587,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
               {activeTab === "submissions" && (
                 <div className="space-y-4">
+<<<<<<< Updated upstream
                   {/* Selection Controls */}
                   <div className="flex items-center justify-between p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
                     <div className="flex items-center space-x-4">
@@ -287,8 +600,20 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <span className="text-gray-100 font-medium">
                         {selectedSubmissions.length} of {mockSubmissions.length} selected
                       </span>
+=======
+                  {isLoadingQuest ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                      <span className="ml-3 text-gray-600">Loading submission data...</span>
+>>>>>>> Stashed changes
                     </div>
+                  ) : hasSubmissions && userSubmission ? (
+                    <div className="space-y-4">
+                      {/* Submission Info */}
+                      <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Photo Submission</h3>
 
+<<<<<<< Updated upstream
                     {selectedSubmissions.length > 0 && (
                       <div className="text-right">
                         <div className="text-sm text-gray-300">Reward per photographer:</div>
@@ -296,31 +621,37 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       </div>
                     )}
                   </div>
+=======
+                        <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
+                          {/* Photo Preview */}
+                          <div className="flex-shrink-0">
+                            {userSubmission.watermarkedPhotoIPFS ? (
+                              <div className="relative w-16 h-16">
+                                <img
+                                  src={getIPFSUrl(userSubmission.watermarkedPhotoIPFS)}
+                                  alt="Submitted photo"
+                                  className="w-16 h-16 object-cover rounded-lg"
+                                  onLoad={e => {
+                                    console.log("Image loaded successfully:", userSubmission.watermarkedPhotoIPFS);
+                                    // Hide loading overlay
+                                    const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
+                                    if (loadingOverlay) {
+                                      loadingOverlay.style.display = "none";
+                                    }
+                                  }}
+                                  onError={e => {
+                                    console.log("Image failed to load from:", e.currentTarget.src);
+                                    console.log("IPFS Hash:", userSubmission.watermarkedPhotoIPFS);
+>>>>>>> Stashed changes
 
-                  {/* Submissions List */}
-                  {mockSubmissions.map(submission => (
-                    <div
-                      key={submission.id}
-                      className={`flex items-center space-x-4 p-4 rounded-lg border transition-colors cursor-pointer ${
-                        selectedSubmissions.includes(submission.id)
-                          ? "bg-blue-50/50 border-blue-300 bg-white/30"
-                          : "bg-white/20 border-white/30 hover:bg-white/30"
-                      }`}
-                      onClick={() => handleSubmissionToggle(submission.id)}
-                    >
-                      {/* Checkbox */}
-                      <div className="flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={selectedSubmissions.includes(submission.id)}
-                          onChange={() => handleSubmissionToggle(submission.id)}
-                          className="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                        />
-                      </div>
+                                    // Try multiple fallback gateways
+                                    const currentSrc = e.currentTarget.src;
+                                    const ipfsHash = userSubmission.watermarkedPhotoIPFS;
 
-                      {/* Image */}
-                      <img src={submission.imageUrl} alt="Submission" className="w-16 h-16 object-cover rounded-lg" />
+                                    // List of IPFS gateways to try
+                                    const gateways = getIPFSGateways(ipfsHash);
 
+<<<<<<< Updated upstream
                       {/* Info */}
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
@@ -333,22 +664,114 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           {new Date(submission.timestamp).toLocaleDateString()}
                         </div>
                       </div>
+=======
+                                    // Find current gateway index and try next one
+                                    let nextGateway = null;
+                                    for (let i = 0; i < gateways.length; i++) {
+                                      if (currentSrc === gateways[i] && i < gateways.length - 1) {
+                                        nextGateway = gateways[i + 1];
+                                        break;
+                                      }
+                                    }
+>>>>>>> Stashed changes
 
-                      {/* Selection Indicator */}
-                      {selectedSubmissions.includes(submission.id) && (
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
+                                    if (nextGateway) {
+                                      console.log("Trying next gateway:", nextGateway);
+                                      e.currentTarget.src = nextGateway;
+                                    } else {
+                                      // All gateways failed, use placeholder and hide loading
+                                      console.log("All IPFS gateways failed, using placeholder");
+                                      e.currentTarget.src =
+                                        "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=64&h=64&fit=crop";
+                                      const loadingOverlay = e.currentTarget.nextElementSibling as HTMLElement;
+                                      if (loadingOverlay) {
+                                        loadingOverlay.style.display = "none";
+                                      }
+                                    }
+                                  }}
+                                />
+                                {/* Loading overlay */}
+                                <div className="absolute inset-0 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <Camera className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
                           </div>
+
+                          {/* Submission Details */}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-mono text-sm text-gray-800 font-semibold">
+                                {userSubmission.photographer}
+                              </span>
+                              <ExternalLink className="w-4 h-4 text-gray-600" />
+                            </div>
+                            <div className="text-sm text-gray-700 font-medium">
+                              Submitted: {new Date(Number(userSubmission.submittedAt) * 1000).toLocaleDateString()}
+                            </div>
+                            {userSubmission.watermarkedPhotoIPFS && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                IPFS: {userSubmission.watermarkedPhotoIPFS.slice(0, 20)}...
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Approval Section - Only show to quest creator */}
+                      {isQuestCreator && contractQuest?.status === 2 && (
+                        <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submission</h4>
+                          <p className="text-sm text-gray-700 mb-4">
+                            Review the submitted photo and approve it to complete the quest and release payment to the
+                            photographer.
+                          </p>
+
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={() => handleSelectSubmissions([0])} // For now, approve first submission
+                              disabled={isApproving}
+                              className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isApproving ? (
+                                <>
+                                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Approving...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Coins className="w-5 h-5" />
+                                  <span>Approve & Complete Quest</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <p className="text-center text-sm text-gray-700 mt-2">Reward: {quest.reward}</p>
+                        </div>
+                      )}
+
+                      {/* Status Info */}
+                      {contractQuest?.status === 3 && (
+                        <div className="p-4 bg-green-50/20 backdrop-blur-sm rounded-lg border border-green-200/30">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-green-700 font-medium">Quest Completed & Payment Released</span>
+                          </div>
+                          <p className="text-sm text-green-600 mt-1">
+                            Completed on:{" "}
+                            {contractQuest.completedAt
+                              ? new Date(Number(contractQuest.completedAt) * 1000).toLocaleDateString()
+                              : "N/A"}
+                          </p>
                         </div>
                       )}
                     </div>
+<<<<<<< Updated upstream
                   ))}
 
                   {/* Confirm Button */}
@@ -373,7 +796,26 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       </button>
                       <p className="text-center text-sm text-gray-300 mt-2">
                         Total: {quest.reward} • {rewardPerPhotographer.toFixed(3)} ETH per photographer
+=======
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Camera className="w-12 h-12 text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-700 mb-2">No Submissions Yet</h3>
+                      <p className="text-gray-500 mb-4">
+                        This quest is waiting for photographers to submit their work.
+>>>>>>> Stashed changes
                       </p>
+                      {contractQuest?.status === 0 && (
+                        <p className="text-sm text-blue-600">Quest is open and accepting photographers.</p>
+                      )}
+                      {contractQuest?.status === 1 && (
+                        <p className="text-sm text-orange-600">
+                          Quest has {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}{" "}
+                          submissions
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

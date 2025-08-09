@@ -82,13 +82,20 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
         description: formData.description,
         category: categoryEnum,
         deadline: deadlineTimestamp,
+        maxSubmissions: parseInt(formData.maxSubmissions) || 10,
         value: rewardInWei.toString(),
       });
 
       // Call smart contract
       const result = await writeYourContractAsync({
         functionName: "createQuest",
-        args: [formData.title, formData.description, categoryEnum, BigInt(deadlineTimestamp)],
+        args: [
+          formData.title,
+          formData.description,
+          categoryEnum,
+          BigInt(deadlineTimestamp),
+          BigInt(parseInt(formData.maxSubmissions) || 10),
+        ],
         value: rewardInWei,
       });
 
@@ -218,6 +225,7 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
               />
             </div>
 
+<<<<<<< Updated upstream
             {/* Image URL */}
             <div>
               <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -235,6 +243,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
               />
             </div>
 
+=======
+>>>>>>> Stashed changes
             {/* Reward and Max Submissions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

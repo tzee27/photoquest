@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   11155111: {
     YourContract: {
-      address: "0x9955083f02b7583641cad0000a4281f86862616e",
+      address: "0xc16e7d7a2b1ffb75f15056b36052514ea50bfe78",
       abi: [
         {
           type: "constructor",
@@ -23,32 +23,6 @@ const deployedContracts = {
         {
           type: "receive",
           stateMutability: "payable",
-        },
-        {
-          type: "function",
-          name: "acceptQuest",
-          inputs: [
-            {
-              name: "_questId",
-              type: "uint256",
-              internalType: "uint256",
-            },
-          ],
-          outputs: [],
-          stateMutability: "nonpayable",
-        },
-        {
-          type: "function",
-          name: "approveQuest",
-          inputs: [
-            {
-              name: "_questId",
-              type: "uint256",
-              internalType: "uint256",
-            },
-          ],
-          outputs: [],
-          stateMutability: "nonpayable",
         },
         {
           type: "function",
@@ -84,6 +58,11 @@ const deployedContracts = {
             },
             {
               name: "_deadline",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "_maxSubmissions",
               type: "uint256",
               internalType: "uint256",
             },
@@ -132,6 +111,62 @@ const deployedContracts = {
         },
         {
           type: "function",
+          name: "getPhotographerSubmission",
+          inputs: [
+            {
+              name: "_questId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "_photographer",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple",
+              internalType: "struct YourContract.Submission",
+              components: [
+                {
+                  name: "photographer",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "watermarkedPhotoIPFS",
+                  type: "string",
+                  internalType: "string",
+                },
+                {
+                  name: "originalPhotoIPFS",
+                  type: "string",
+                  internalType: "string",
+                },
+                {
+                  name: "submittedAt",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "isSelected",
+                  type: "bool",
+                  internalType: "bool",
+                },
+                {
+                  name: "isPaid",
+                  type: "bool",
+                  internalType: "bool",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
           name: "getQuest",
           inputs: [
             {
@@ -153,11 +188,6 @@ const deployedContracts = {
                 },
                 {
                   name: "requester",
-                  type: "address",
-                  internalType: "address",
-                },
-                {
-                  name: "photographer",
                   type: "address",
                   internalType: "address",
                 },
@@ -192,6 +222,57 @@ const deployedContracts = {
                   internalType: "enum YourContract.QuestStatus",
                 },
                 {
+                  name: "maxSubmissions",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "submissionCount",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "selectedCount",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "createdAt",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+                {
+                  name: "completedAt",
+                  type: "uint256",
+                  internalType: "uint256",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getQuestSubmissions",
+          inputs: [
+            {
+              name: "_questId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple[]",
+              internalType: "struct YourContract.Submission[]",
+              components: [
+                {
+                  name: "photographer",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
                   name: "watermarkedPhotoIPFS",
                   type: "string",
                   internalType: "string",
@@ -202,9 +283,55 @@ const deployedContracts = {
                   internalType: "string",
                 },
                 {
-                  name: "createdAt",
+                  name: "submittedAt",
                   type: "uint256",
                   internalType: "uint256",
+                },
+                {
+                  name: "isSelected",
+                  type: "bool",
+                  internalType: "bool",
+                },
+                {
+                  name: "isPaid",
+                  type: "bool",
+                  internalType: "bool",
+                },
+              ],
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "getSelectedSubmissions",
+          inputs: [
+            {
+              name: "_questId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "tuple[]",
+              internalType: "struct YourContract.Submission[]",
+              components: [
+                {
+                  name: "photographer",
+                  type: "address",
+                  internalType: "address",
+                },
+                {
+                  name: "watermarkedPhotoIPFS",
+                  type: "string",
+                  internalType: "string",
+                },
+                {
+                  name: "originalPhotoIPFS",
+                  type: "string",
+                  internalType: "string",
                 },
                 {
                   name: "submittedAt",
@@ -212,9 +339,14 @@ const deployedContracts = {
                   internalType: "uint256",
                 },
                 {
-                  name: "approvedAt",
-                  type: "uint256",
-                  internalType: "uint256",
+                  name: "isSelected",
+                  type: "bool",
+                  internalType: "bool",
+                },
+                {
+                  name: "isPaid",
+                  type: "bool",
+                  internalType: "bool",
                 },
               ],
             },
@@ -236,6 +368,54 @@ const deployedContracts = {
               name: "",
               type: "uint256[]",
               internalType: "uint256[]",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hasPhotographerSubmitted",
+          inputs: [
+            {
+              name: "_questId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "_photographer",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "hasSubmitted",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "bool",
+              internalType: "bool",
             },
           ],
           stateMutability: "view",
@@ -266,6 +446,30 @@ const deployedContracts = {
               name: "",
               type: "uint256",
               internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "photographerSubmissionIndex",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "address",
+              internalType: "address",
             },
           ],
           outputs: [
@@ -324,6 +528,55 @@ const deployedContracts = {
         },
         {
           type: "function",
+          name: "questSubmissions",
+          inputs: [
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "",
+              type: "uint256",
+              internalType: "uint256",
+            },
+          ],
+          outputs: [
+            {
+              name: "photographer",
+              type: "address",
+              internalType: "address",
+            },
+            {
+              name: "watermarkedPhotoIPFS",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "originalPhotoIPFS",
+              type: "string",
+              internalType: "string",
+            },
+            {
+              name: "submittedAt",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "isSelected",
+              type: "bool",
+              internalType: "bool",
+            },
+            {
+              name: "isPaid",
+              type: "bool",
+              internalType: "bool",
+            },
+          ],
+          stateMutability: "view",
+        },
+        {
+          type: "function",
           name: "quests",
           inputs: [
             {
@@ -340,11 +593,6 @@ const deployedContracts = {
             },
             {
               name: "requester",
-              type: "address",
-              internalType: "address",
-            },
-            {
-              name: "photographer",
               type: "address",
               internalType: "address",
             },
@@ -379,14 +627,19 @@ const deployedContracts = {
               internalType: "enum YourContract.QuestStatus",
             },
             {
-              name: "watermarkedPhotoIPFS",
-              type: "string",
-              internalType: "string",
+              name: "maxSubmissions",
+              type: "uint256",
+              internalType: "uint256",
             },
             {
-              name: "originalPhotoIPFS",
-              type: "string",
-              internalType: "string",
+              name: "submissionCount",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "selectedCount",
+              type: "uint256",
+              internalType: "uint256",
             },
             {
               name: "createdAt",
@@ -394,17 +647,30 @@ const deployedContracts = {
               internalType: "uint256",
             },
             {
-              name: "submittedAt",
-              type: "uint256",
-              internalType: "uint256",
-            },
-            {
-              name: "approvedAt",
+              name: "completedAt",
               type: "uint256",
               internalType: "uint256",
             },
           ],
           stateMutability: "view",
+        },
+        {
+          type: "function",
+          name: "selectSubmissions",
+          inputs: [
+            {
+              name: "_questId",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            {
+              name: "_selectedSubmissionIndices",
+              type: "uint256[]",
+              internalType: "uint256[]",
+            },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
         },
         {
           type: "function",
@@ -467,19 +733,6 @@ const deployedContracts = {
           stateMutability: "view",
         },
         {
-          type: "function",
-          name: "withdrawFromQuest",
-          inputs: [
-            {
-              name: "_questId",
-              type: "uint256",
-              internalType: "uint256",
-            },
-          ],
-          outputs: [],
-          stateMutability: "nonpayable",
-        },
-        {
           type: "event",
           name: "PhotoSubmitted",
           inputs: [
@@ -502,6 +755,12 @@ const deployedContracts = {
               internalType: "string",
             },
             {
+              name: "submissionIndex",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
               name: "timestamp",
               type: "uint256",
               indexed: false,
@@ -522,62 +781,6 @@ const deployedContracts = {
             },
             {
               name: "newFee",
-              type: "uint256",
-              indexed: false,
-              internalType: "uint256",
-            },
-          ],
-          anonymous: false,
-        },
-        {
-          type: "event",
-          name: "QuestAccepted",
-          inputs: [
-            {
-              name: "questId",
-              type: "uint256",
-              indexed: true,
-              internalType: "uint256",
-            },
-            {
-              name: "photographer",
-              type: "address",
-              indexed: true,
-              internalType: "address",
-            },
-            {
-              name: "timestamp",
-              type: "uint256",
-              indexed: false,
-              internalType: "uint256",
-            },
-          ],
-          anonymous: false,
-        },
-        {
-          type: "event",
-          name: "QuestApproved",
-          inputs: [
-            {
-              name: "questId",
-              type: "uint256",
-              indexed: true,
-              internalType: "uint256",
-            },
-            {
-              name: "requester",
-              type: "address",
-              indexed: true,
-              internalType: "address",
-            },
-            {
-              name: "originalPhotoIPFS",
-              type: "string",
-              indexed: false,
-              internalType: "string",
-            },
-            {
-              name: "timestamp",
               type: "uint256",
               indexed: false,
               internalType: "uint256",
@@ -621,13 +824,19 @@ const deployedContracts = {
               internalType: "uint256",
             },
             {
-              name: "photographer",
+              name: "requester",
               type: "address",
               indexed: true,
               internalType: "address",
             },
             {
-              name: "reward",
+              name: "totalSelectedSubmissions",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "totalRewardDistributed",
               type: "uint256",
               indexed: false,
               internalType: "uint256",
@@ -681,12 +890,55 @@ const deployedContracts = {
               indexed: false,
               internalType: "uint256",
             },
+            {
+              name: "maxSubmissions",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+          ],
+          anonymous: false,
+        },
+        {
+          type: "event",
+          name: "SubmissionsSelected",
+          inputs: [
+            {
+              name: "questId",
+              type: "uint256",
+              indexed: true,
+              internalType: "uint256",
+            },
+            {
+              name: "requester",
+              type: "address",
+              indexed: true,
+              internalType: "address",
+            },
+            {
+              name: "selectedPhotographers",
+              type: "address[]",
+              indexed: false,
+              internalType: "address[]",
+            },
+            {
+              name: "rewardPerWinner",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
+            {
+              name: "timestamp",
+              type: "uint256",
+              indexed: false,
+              internalType: "uint256",
+            },
           ],
           anonymous: false,
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 8946409,
+      deployedOnBlock: 8947400,
     },
   },
 } as const;

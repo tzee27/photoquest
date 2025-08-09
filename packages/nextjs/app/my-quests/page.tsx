@@ -5,7 +5,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Award, Camera, Clock, Coins, Eye, Star, Target, Trophy, Upload, X } from "lucide-react";
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
+import QuestDetailModal from "~~/components/QuestDetailModal";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { getIPFSGateways, getIPFSUrl } from "~~/utils/pinata";
 
 // Contract enums mapping
 const QuestStatus = {
@@ -40,7 +42,57 @@ const ImageModal = ({
   imageUrl: string;
   questTitle: string;
 }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+    console.log("Image loaded successfully:", imageUrl);
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.log("Image failed to load from:", e.currentTarget.src);
+
+    const currentSrc = e.currentTarget.src;
+
+    // Extract IPFS hash from URL
+    const ipfsHashMatch = currentSrc.match(/\/ipfs\/([a-zA-Z0-9]+)/);
+    if (!ipfsHashMatch) {
+      console.error("Could not extract IPFS hash from URL:", currentSrc);
+      setHasError(true);
+      setIsLoading(false);
+      return;
+    }
+
+    const ipfsHash = ipfsHashMatch[1];
+    console.log("Extracted IPFS hash:", ipfsHash);
+
+    // Get all available gateways for this hash
+    const gateways = getIPFSGateways(ipfsHash);
+    console.log("Available gateways:", gateways);
+
+    // Find current gateway index and try next one
+    let nextGateway = null;
+    for (let i = 0; i < gateways.length; i++) {
+      if (currentSrc === gateways[i] && i < gateways.length - 1) {
+        nextGateway = gateways[i + 1];
+        break;
+      }
+    }
+
+    if (nextGateway) {
+      console.log("Trying next gateway:", nextGateway);
+      e.currentTarget.src = nextGateway;
+    } else {
+      // All gateways failed
+      console.log("All IPFS gateways failed for hash:", ipfsHash);
+      setHasError(true);
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -69,9 +121,50 @@ const ImageModal = ({
             </button>
           </div>
 
-          {/* Image */}
-          <div className="p-4">
-            <img src={imageUrl} alt={questTitle} className="w-full h-auto max-h-[70vh] object-contain rounded-lg" />
+          {/* Image Container */}
+          <div className="p-4 relative">
+            {isLoading && (
+              <div className="absolute inset-4 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Loading image from IPFS...</p>
+                </div>
+              </div>
+            )}
+
+            {hasError ? (
+              <div className="bg-gray-100 rounded-lg flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                  <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Failed to Load Image</h4>
+                  <p className="text-gray-500 mb-4">The image could not be loaded from IPFS.</p>
+                  <button
+                    onClick={() => {
+                      setHasError(false);
+                      setIsLoading(true);
+                      // Force reload by adding timestamp
+                      const img = document.querySelector("#quest-image") as HTMLImageElement;
+                      if (img) {
+                        img.src = imageUrl + "?t=" + Date.now();
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <img
+                id="quest-image"
+                src={imageUrl}
+                alt={questTitle}
+                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                style={{ display: isLoading ? "none" : "block" }}
+              />
+            )}
           </div>
         </motion.div>
       </div>
@@ -232,7 +325,15 @@ const PhotoUploadModal = ({
 };
 
 // Component to fetch individual quest details
-const QuestDetailsWrapper = ({ questId, type }: { questId: bigint; type: "created" | "accepted" }) => {
+const QuestDetailsWrapper = ({
+  questId,
+  type,
+  onClick,
+}: {
+  questId: bigint;
+  type: "created" | "accepted";
+  onClick?: (quest: any) => void;
+}) => {
   const { address: connectedAddress } = useAccount();
   const [showImageModal, setShowImageModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -256,6 +357,12 @@ const QuestDetailsWrapper = ({ questId, type }: { questId: bigint; type: "create
       </motion.div>
     );
   }
+
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick(quest);
+    }
+  };
 
   const getStatusDisplay = (status: number) => {
     return QuestStatus[status as keyof typeof QuestStatus] || "Unknown";
@@ -316,14 +423,6 @@ const QuestDetailsWrapper = ({ questId, type }: { questId: bigint; type: "create
     statusDisplay === "Accepted" &&
     !hasSubmittedPhoto;
 
-  // Generate IPFS URL for the image
-  const getIPFSUrl = (hash: string) => {
-    if (!hash) return "";
-    // Remove 'ipfs://' prefix if present
-    const cleanHash = hash.replace(/^ipfs:\/\//, "");
-    return `https://ipfs.io/ipfs/${cleanHash}`;
-  };
-
   const handleShowImage = () => {
     if (hasSubmittedPhoto) {
       setShowImageModal(true);
@@ -339,7 +438,8 @@ const QuestDetailsWrapper = ({ questId, type }: { questId: bigint; type: "create
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 overflow-hidden hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md"
+        onClick={handleCardClick}
+        className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 overflow-hidden hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
       >
         {/* Quest Header */}
         <div className="p-6">
@@ -494,6 +594,8 @@ const QuestDetailsWrapper = ({ questId, type }: { questId: bigint; type: "create
 const MyQuestsPage = () => {
   const { address: connectedAddress, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState<"active" | "completed" | "created">("active");
+  const [selectedQuest, setSelectedQuest] = useState<any>(null);
+  const [showQuestDetail, setShowQuestDetail] = useState(false);
 
   // Fetch user's created quests
   const { data: userQuestIds } = useScaffoldReadContract({
@@ -508,6 +610,35 @@ const MyQuestsPage = () => {
     functionName: "getPhotographerQuests",
     args: [connectedAddress],
   });
+
+  const handleQuestClick = (quest: any) => {
+    // Transform contract data to Quest interface format expected by QuestDetailModal
+    const questForModal = {
+      id: quest.id.toString(),
+      title: quest.title,
+      description: quest.description,
+      reward: `${formatEther(quest.reward)} ETH`,
+      deadline: new Date(Number(quest.deadline) * 1000).toISOString(),
+      creator: quest.requester,
+      maxSubmissions: Number(quest.maxSubmissions),
+      imageUrl: "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop",
+      tags: ["landscape", "nature"], // Default tags since this info isn't in contract
+      category: "landscape" as any, // Map from enum if needed
+    };
+
+    setSelectedQuest(questForModal);
+    setShowQuestDetail(true);
+  };
+
+  const handleCloseQuestDetail = () => {
+    setShowQuestDetail(false);
+    setSelectedQuest(null);
+  };
+
+  const handleLoginRequired = () => {
+    // This should trigger wallet connection
+    console.log("Login required");
+  };
 
   // Mock user data - you could fetch this from the contract or IPFS in the future
   const user = {
@@ -553,7 +684,12 @@ const MyQuestsPage = () => {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {userQuestIds.map(questId => (
-            <QuestDetailsWrapper key={`created-${questId.toString()}`} questId={questId} type="created" />
+            <QuestDetailsWrapper
+              key={`created-${questId.toString()}`}
+              questId={questId}
+              type="created"
+              onClick={handleQuestClick}
+            />
           ))}
         </div>
       );
@@ -574,7 +710,12 @@ const MyQuestsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Only Accepted Quests (as photographer) */}
           {photographerQuestIds.map(questId => (
-            <QuestDetailsWrapper key={`active-accepted-${questId.toString()}`} questId={questId} type="accepted" />
+            <QuestDetailsWrapper
+              key={`active-accepted-${questId.toString()}`}
+              questId={questId}
+              type="accepted"
+              onClick={handleQuestClick}
+            />
           ))}
         </div>
       );
@@ -594,52 +735,42 @@ const MyQuestsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg p-8 mb-8">
-          <div className="flex items-center space-x-6">
-            <img
-              src={user?.avatar}
-              alt={user?.username}
-              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
-            />
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{user?.address}</h1>
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <Star className="w-5 h-5 text-yellow-500" />
-                  <span className="font-medium text-gray-700">Reputation: {user?.reputation}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Coins className="w-5 h-5 text-green-500" />
-                  <span className="font-medium text-gray-700">Total Earnings: {user?.totalEarnings}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">My Quests</h1>
+          <p className="text-gray-600 text-lg">Manage your photo quests and submissions</p>
         </div>
 
-        {/* Quest Stats */}
+        {/* User Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg p-6 text-center">
-            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-4">
-              <Camera className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{questCounts.created}</h3>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center"
+          >
+            <h3 className="text-3xl font-bold text-gray-900 mb-2">{questCounts.created}</h3>
             <p className="text-gray-600">Created Quests</p>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg p-6 text-center">
-            <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-lg mx-auto mb-4">
-              <Target className="w-6 h-6 text-yellow-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{questCounts.active}</h3>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center"
+          >
+            <h3 className="text-3xl font-bold text-gray-900 mb-2">{questCounts.active}</h3>
             <p className="text-gray-600">Active Quests</p>
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg p-6 text-center">
-            <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mx-auto mb-4">
-              <Trophy className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{questCounts.completed}</h3>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center"
+          >
+            <h3 className="text-3xl font-bold text-gray-900 mb-2">{questCounts.completed}</h3>
             <p className="text-gray-600">Completed Quests</p>
-          </div>
+          </motion.div>
         </div>
 
         {/* Tabs */}
@@ -670,6 +801,16 @@ const MyQuestsPage = () => {
           {/* Quest Content */}
           <div className="p-8">{renderQuestList()}</div>
         </div>
+
+        {/* Quest Detail Modal */}
+        {showQuestDetail && selectedQuest && (
+          <QuestDetailModal
+            quest={selectedQuest}
+            onClose={handleCloseQuestDetail}
+            isConnected={isConnected}
+            onLoginRequired={handleLoginRequired}
+          />
+        )}
       </div>
     </div>
   );
