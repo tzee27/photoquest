@@ -6,17 +6,15 @@ import { Award, Camera, Clock, Coins, Eye, Star, Target, Trophy, Upload, X } fro
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
 import QuestDetailModal from "~~/components/QuestDetailModal";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useScaffoldReadContract } from "~~/hooks/scaffold-eth";
 import { getIPFSGateways, getIPFSUrl } from "~~/utils/pinata";
 
 // Contract enums mapping
 const QuestStatus = {
   0: "Open",
-  1: "Accepted",
-  2: "Submitted",
-  3: "Approved",
-  4: "Completed",
-  5: "Cancelled",
+  1: "HasSubmissions",
+  2: "Completed",
+  3: "Cancelled",
 } as const;
 
 const Category = {
@@ -102,8 +100,8 @@ const ImageModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
           className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
         />
 
         {/* Modal */}
@@ -111,210 +109,51 @@ const ImageModal = ({
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl"
+          className="relative z-10 max-w-4xl w-full max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">{questTitle}</h3>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Image Container */}
-          <div className="p-4 relative">
-            {isLoading && (
-              <div className="absolute inset-4 bg-gray-100 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Loading image from IPFS...</p>
-                </div>
-              </div>
-            )}
-
-            {hasError ? (
-              <div className="bg-gray-100 rounded-lg flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-semibold text-gray-700 mb-2">Failed to Load Image</h4>
-                  <p className="text-gray-500 mb-4">The image could not be loaded from IPFS.</p>
-                  <button
-                    onClick={() => {
-                      setHasError(false);
-                      setIsLoading(true);
-                      // Force reload by adding timestamp
-                      const img = document.querySelector("#quest-image") as HTMLImageElement;
-                      if (img) {
-                        img.src = imageUrl + "?t=" + Date.now();
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <img
-                id="quest-image"
-                src={imageUrl}
-                alt={questTitle}
-                className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                style={{ display: isLoading ? "none" : "block" }}
-              />
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  );
-};
-
-// Photo Upload Modal Component
-const PhotoUploadModal = ({
-  isOpen,
-  onClose,
-  questId,
-  questTitle,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  questId: bigint;
-  questTitle: string;
-}) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-
-  const { writeContractAsync: submitPhoto } = useScaffoldWriteContract("YourContract");
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedFile) return;
-
-    try {
-      setIsUploading(true);
-
-      // TODO: In a real implementation, you would:
-      // 1. Upload the file to IPFS
-      // 2. Get the IPFS hash
-      // 3. Submit the hash to the smart contract
-
-      // For now, we'll use a placeholder IPFS hash
-      const placeholderIPFSHash = "QmYourPhotoHashHere";
-
-      await submitPhoto({
-        functionName: "submitPhoto",
-        args: [questId, placeholderIPFSHash, placeholderIPFSHash], // watermarked and original
-      });
-
-      console.log("Photo submitted successfully!");
-      onClose();
-    } catch (error) {
-      console.error("Error submitting photo:", error);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-        />
-
-        {/* Modal */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
-        >
-          {/* Header */}
-          <div className="p-6 border-b border-gray-200">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Submit Photo</h3>
-              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
+              <h2 className="text-xl font-bold">{questTitle}</h2>
+              <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mt-2">{questTitle}</p>
           </div>
 
-          {/* Content */}
+          {/* Image Content */}
           <div className="p-6">
-            {/* File Upload Area */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-              <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="photo-upload" />
-              <label htmlFor="photo-upload" className="cursor-pointer">
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg font-medium text-gray-700 mb-2">Choose a photo to upload</p>
-                <p className="text-sm text-gray-500">PNG, JPG, GIF up to 10MB</p>
-              </label>
+            <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+                  <span className="ml-3 text-gray-600">Loading image...</span>
+                </div>
+              )}
+
+              {hasError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                  <Eye className="w-16 h-16 mb-4" />
+                  <p className="text-lg font-medium mb-2">Image unavailable</p>
+                  <p className="text-sm text-center max-w-md">
+                    The IPFS image could not be loaded from any gateway. This might be a temporary issue.
+                  </p>
+                </div>
+              ) : (
+                <img
+                  src={imageUrl}
+                  alt={questTitle}
+                  className="w-full h-full object-cover"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              )}
             </div>
 
-            {/* Preview */}
-            {previewUrl && (
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Preview:</h4>
-                <img src={previewUrl} alt="Preview" className="w-full h-64 object-cover rounded-lg border" />
-              </div>
-            )}
-
-            {/* Camera Option */}
-            <div className="mt-6">
-              <button
-                onClick={() => {
-                  // TODO: Implement camera capture
-                  alert("Camera feature coming soon!");
-                }}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <Camera className="w-5 h-5 text-gray-600" />
-                <span className="text-gray-700 font-medium">Take Photo with Camera</span>
-              </button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex space-x-3 mt-8">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!selectedFile || isUploading}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isUploading ? "Uploading..." : "Submit Photo"}
-              </button>
-            </div>
-
-            {/* Note */}
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> This will submit your photo to the blockchain. Make sure your photo meets the
-                quest requirements before submitting.
+            {/* Image URL Info */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 break-all">
+                <strong>IPFS URL:</strong> {imageUrl}
               </p>
             </div>
           </div>
@@ -324,274 +163,171 @@ const PhotoUploadModal = ({
   );
 };
 
-// Component to fetch individual quest details
-const QuestDetailsWrapper = ({
-  questId,
-  type,
-  onClick,
-}: {
-  questId: bigint;
-  type: "created" | "accepted";
-  onClick?: (quest: any) => void;
-}) => {
-  const { address: connectedAddress } = useAccount();
+// Submission Card Component
+const SubmissionCard = ({ submission, questTitle }: { submission: any; questTitle: string }) => {
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
-  const { data: quest } = useScaffoldReadContract({
-    contractName: "YourContract",
-    functionName: "getQuest",
-    args: [questId],
-  });
-
-  if (!quest) {
-    return (
-      <motion.div className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 overflow-hidden shadow-sm">
-        <div className="p-6 text-center">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-            <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">Loading quest details...</p>
-        </div>
-      </motion.div>
-    );
-  }
-
-  const handleCardClick = () => {
-    if (onClick) {
-      onClick(quest);
-    }
-  };
-
-  const getStatusDisplay = (status: number) => {
-    return QuestStatus[status as keyof typeof QuestStatus] || "Unknown";
-  };
-
-  const getCategoryDisplay = (category: number) => {
-    return Category[category as keyof typeof Category] || "Other";
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "open":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "accepted":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "submitted":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "approved":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "completed":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
-      case "cancelled":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "open":
-        return <Camera className="w-4 h-4" />;
-      case "accepted":
-        return <Target className="w-4 h-4" />;
-      case "submitted":
-        return <Clock className="w-4 h-4" />;
-      case "approved":
-      case "completed":
-        return <Trophy className="w-4 h-4" />;
-      default:
-        return <Camera className="w-4 h-4" />;
-    }
-  };
-
-  const statusDisplay = getStatusDisplay(quest.status);
-  const categoryDisplay = getCategoryDisplay(quest.category);
-  const rewardInEth = formatEther(quest.reward);
-  const deadlineDate = new Date(Number(quest.deadline) * 1000);
-  const createdDate = new Date(Number(quest.createdAt) * 1000);
-
-  // Check if quest has submitted photo - Update for new contract structure
-  // In the new design, we need to check if current user has submitted to this quest
-  const hasSubmittedPhoto = false; // TODO: Check via hasPhotographerSubmitted contract call
-
-  // Check if user can upload photo - Update logic for new contract structure
-  // In new design, users can submit directly to open quests, no "acceptance" needed
-  const canUploadPhoto = false; // Disable old upload logic since we now use QuestDetailModal for submissions
-
-  const handleShowImage = () => {
-    if (hasSubmittedPhoto) {
-      setShowImageModal(true);
-    }
-  };
-
-  const handleUploadPhoto = () => {
-    setShowUploadModal(true);
-  };
+  const imageUrl = getIPFSUrl(submission.watermarkedPhotoIPFS);
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={handleCardClick}
-        className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 overflow-hidden hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
-      >
-        {/* Quest Header */}
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 mb-2 text-lg">{quest.title}</h3>
-              <p className="text-gray-600 text-sm mb-3">{quest.description}</p>
-            </div>
-            <div className="ml-4 flex flex-col items-end space-y-2">
-              {/* Status Badge */}
-              <span
-                className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(statusDisplay)}`}
-              >
-                {getStatusIcon(statusDisplay)}
-                <span>{statusDisplay}</span>
-              </span>
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        <div className="aspect-video bg-gray-100 relative group cursor-pointer" onClick={() => setShowImageModal(true)}>
+          <img
+            src={imageUrl}
+            alt={`Submission for ${questTitle}`}
+            className="w-full h-full object-cover"
+            onError={e => {
+              // Try alternative IPFS gateway on error
+              const target = e.target as HTMLImageElement;
+              const ipfsHash = submission.watermarkedPhotoIPFS;
+              const gateways = getIPFSGateways(ipfsHash);
 
-              {/* Reward */}
-              <span className="flex items-center space-x-1 px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-700 font-semibold">
-                <Coins className="w-4 h-4" />
-                <span>{rewardInEth} ETH</span>
-              </span>
-            </div>
+              // Find current src and try next gateway
+              const currentIndex = gateways.findIndex(gateway => gateway === target.src);
+              if (currentIndex !== -1 && currentIndex < gateways.length - 1) {
+                target.src = gateways[currentIndex + 1];
+              }
+            }}
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+            <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex space-x-3 mb-4">
-            {/* Show Image Button */}
-            {hasSubmittedPhoto && (
-              <button
-                onClick={handleShowImage}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium"
-              >
-                <Eye className="w-4 h-4" />
-                <span>Show Submitted Photo</span>
-              </button>
-            )}
-
-            {/* Upload Photo Button */}
-            {canUploadPhoto && (
-              <button
-                onClick={handleUploadPhoto}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors font-medium"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Photo</span>
-              </button>
-            )}
-          </div>
-
-          {/* Quest Stats */}
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Quest ID:</span>
-              <span className="font-semibold text-gray-900">#{quest.id.toString()}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Category:</span>
-              <span className="font-semibold text-gray-900">{categoryDisplay}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Reward:</span>
-              <span className="font-semibold text-green-600">{rewardInEth} ETH</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Deadline:</span>
-              <span className="font-semibold text-gray-900 text-xs">{deadlineDate.toLocaleDateString()}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Created:</span>
-              <span className="font-semibold text-gray-900 text-xs">{createdDate.toLocaleDateString()}</span>
-            </div>
-
-            {/* Remove the submittedAt check since it doesn't exist in new contract */}
-            {/* {quest.submittedAt > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Submitted:</span>
-                <span className="font-semibold text-gray-900 text-xs">
-                  {new Date(Number(quest.submittedAt) * 1000).toLocaleDateString()}
-                </span>
-              </div>
-            )} */}
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Status:</span>
-              <span
-                className={`font-semibold text-xs ${quest.status === 0 ? "text-green-600" : quest.status === 1 ? "text-orange-600" : "text-gray-600"}`}
-              >
-                {statusDisplay}
-              </span>
-            </div>
-
-            {type === "created" && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Requester:</span>
-                <span className="font-semibold text-gray-900 text-xs font-mono">
-                  {quest.requester.slice(0, 6)}...{quest.requester.slice(-4)}
-                </span>
-              </div>
-            )}
-
-            {/* Remove photographer display since it doesn't exist in new contract */}
-            {/* {type === "accepted" && quest.photographer !== "0x0000000000000000000000000000000000000000" && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Photographer:</span>
-                <span className="font-semibold text-gray-900 text-xs font-mono">
-                  {quest.photographer.slice(0, 6)}...{quest.photographer.slice(-4)}
-                </span>
-              </div>
-            )} */}
-          </div>
-
-          {/* Tags */}
-          <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-lg font-medium">
-              {categoryDisplay}
-            </span>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-lg font-medium">{type}</span>
-            {hasSubmittedPhoto && (
-              <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
-                Photo Available
-              </span>
-            )}
-            {canUploadPhoto && (
-              <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-lg font-medium">
-                Ready to Submit
-              </span>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Submitted {new Date(Number(submission.submittedAt) * 1000).toLocaleDateString()}</span>
+            {submission.isSelected && (
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">Selected</span>
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Image Modal - Update to handle new contract structure */}
       <ImageModal
         isOpen={showImageModal}
         onClose={() => setShowImageModal(false)}
-        imageUrl={
-          hasSubmittedPhoto ? "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop" : ""
-        }
-        questTitle={quest.title}
-      />
-
-      {/* Photo Upload Modal */}
-      <PhotoUploadModal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        questId={questId}
-        questTitle={quest.title}
+        imageUrl={imageUrl}
+        questTitle={questTitle}
       />
     </>
+  );
+};
+
+// Quest Card Component for Contract Data
+const QuestCard = ({
+  questId,
+  quest,
+  submissions,
+  type,
+  onClick,
+}: {
+  questId: number;
+  quest: any;
+  submissions: any[];
+  type: string;
+  onClick: (questData: any) => void;
+}) => {
+  const categoryName = Category[quest.category as keyof typeof Category] || "Other";
+  const statusName = QuestStatus[quest.status as keyof typeof QuestStatus] || "Unknown";
+
+  const isCompleted = quest.status === 2;
+  const isCancelled = quest.status === 3;
+
+  const questData = {
+    questId: questId,
+    title: quest.title,
+    description: quest.description,
+    category: quest.category,
+    reward: quest.reward.toString(),
+    deadline: quest.deadline.toString(),
+    status: quest.status,
+    maxSubmissions: quest.maxSubmissions.toString(),
+    requester: quest.requester,
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
+    >
+      {/* Quest Header */}
+      <div className="p-6 border-b border-gray-100">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">{quest.title}</h3>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                {categoryName}
+              </span>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isCompleted
+                    ? "bg-green-100 text-green-800"
+                    : isCancelled
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                {statusName}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-bold text-green-600">{formatEther(BigInt(quest.reward))} ETH</div>
+            <div className="text-sm text-gray-500">Reward</div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span>Deadline: {new Date(Number(quest.deadline) * 1000).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Upload className="w-4 h-4" />
+              <span>
+                {submissions.length}/{quest.maxSubmissions} submissions
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Submissions */}
+      {submissions.length > 0 && (
+        <div className="p-6">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Submissions</h4>
+          <div className="grid grid-cols-2 gap-3">
+            {submissions.slice(0, 4).map((submission, index) => (
+              <SubmissionCard key={index} submission={submission} questTitle={quest.title} />
+            ))}
+          </div>
+          {submissions.length > 4 && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={() => onClick(questData)}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                View all {submissions.length} submissions
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="px-6 pb-6">
+        <button
+          onClick={() => onClick(questData)}
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+        >
+          View Details
+        </button>
+      </div>
+    </motion.div>
   );
 };
 
@@ -601,33 +337,79 @@ const MyQuestsPage = () => {
   const [selectedQuest, setSelectedQuest] = useState<any>(null);
   const [showQuestDetail, setShowQuestDetail] = useState(false);
 
-  // Fetch user's created quests
+  console.log("🎯 MyQuestsPage - Connected Address:", {
+    connectedAddress,
+    isConnected,
+    normalized: connectedAddress?.toLowerCase(),
+  });
+
+  // Use Scaffold-ETH hooks to get data directly from contract
   const { data: userQuestIds } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "getUserQuests",
-    args: [connectedAddress],
+    args: [connectedAddress || "0x0"],
   });
 
-  // Fetch user's accepted quests (as photographer)
   const { data: photographerQuestIds } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "getPhotographerQuests",
-    args: [connectedAddress],
+    args: [connectedAddress || "0x0"],
   });
 
-  const handleQuestClick = (quest: any) => {
+  const { data: questCounter } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "questCounter",
+  });
+
+  console.log("🎯 MyQuestsPage - Contract Data:", {
+    userQuestIds: userQuestIds?.length || 0,
+    photographerQuestIds: photographerQuestIds?.length || 0,
+    questCounter: questCounter?.toString(),
+  });
+
+  // Fetch individual quest details for created quests
+  const createdQuests = useMemo(() => {
+    if (!userQuestIds || userQuestIds.length === 0) return [];
+
+    return userQuestIds.map(questId => {
+      const questIdNum = Number(questId);
+      return { questId: questIdNum };
+    });
+  }, [userQuestIds]);
+
+  // Fetch individual quest details for photographer quests (active submissions)
+  const photographerQuests = useMemo(() => {
+    if (!photographerQuestIds || photographerQuestIds.length === 0) return [];
+
+    return photographerQuestIds.map(questId => {
+      const questIdNum = Number(questId);
+      return { questId: questIdNum };
+    });
+  }, [photographerQuestIds]);
+
+  // Filter completed quests (quests where user submitted and quest is completed)
+  const completedQuests = useMemo(() => {
+    if (!photographerQuests) return [];
+    return photographerQuests.filter(q => {
+      // We'll need to check quest status for each quest
+      // For now, return empty array since we need individual quest data
+      return false;
+    });
+  }, [photographerQuests]);
+
+  const handleQuestClick = (questData: any) => {
     // Transform contract data to Quest interface format expected by QuestDetailModal
     const questForModal = {
-      id: quest.id.toString(),
-      title: quest.title,
-      description: quest.description,
-      reward: `${formatEther(quest.reward)} ETH`,
-      deadline: new Date(Number(quest.deadline) * 1000).toISOString(),
-      creator: quest.requester,
-      maxSubmissions: Number(quest.maxSubmissions),
+      id: questData.questId,
+      title: questData.title,
+      description: questData.description || `${questData.title} - Photography Quest`,
+      reward: `${formatEther(BigInt(questData.reward))} ETH`,
+      deadline: new Date(Number(questData.deadline) * 1000).toISOString(),
+      creator: questData.requester,
+      maxSubmissions: Number(questData.maxSubmissions),
       imageUrl: "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop",
-      tags: ["landscape", "nature"], // Default tags since this info isn't in contract
-      category: "landscape" as any, // Map from enum if needed
+      tags: ["photography", "quest"],
+      category: Category[questData.category as keyof typeof Category].toLowerCase() as any,
     };
 
     setSelectedQuest(questForModal);
@@ -640,23 +422,13 @@ const MyQuestsPage = () => {
   };
 
   const handleLoginRequired = () => {
-    // This should trigger wallet connection
     console.log("Login required");
   };
 
-  // Mock user data - you could fetch this from the contract or IPFS in the future
-  const user = {
-    address: connectedAddress || "0x1234...5678",
-    username: "PhotoQuester",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face",
-    reputation: 4.8,
-    totalEarnings: "2.3 ETH",
-  };
-
   const questCounts = {
-    created: userQuestIds?.length || 0,
-    active: photographerQuestIds?.length || 0, // Only accepted quests
-    completed: 0, // TODO: Calculate completed quests
+    created: createdQuests.length,
+    active: photographerQuests.length,
+    completed: completedQuests.length,
   };
 
   if (!isConnected) {
@@ -675,7 +447,7 @@ const MyQuestsPage = () => {
 
   const renderQuestList = () => {
     if (activeTab === "created") {
-      if (!userQuestIds || userQuestIds.length === 0) {
+      if (createdQuests.length === 0) {
         return (
           <div className="text-center py-12">
             <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -687,37 +459,32 @@ const MyQuestsPage = () => {
       }
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {userQuestIds.map(questId => (
-            <QuestDetailsWrapper
-              key={`created-${questId.toString()}`}
-              questId={questId}
-              type="created"
-              onClick={handleQuestClick}
-            />
+          {createdQuests.map(({ questId }) => (
+            <QuestCardWithData key={`created-${questId}`} questId={questId} type="created" onClick={handleQuestClick} />
           ))}
         </div>
       );
     }
 
     if (activeTab === "active") {
-      if (!photographerQuestIds || photographerQuestIds.length === 0) {
+      if (photographerQuests.length === 0) {
         return (
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">No active quests yet</h3>
-            <p className="text-gray-500 mb-4">Accept photo quests as a photographer to see them here</p>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No submissions yet</h3>
+            <p className="text-gray-500 mb-4">Submit photos to quests to see them here</p>
             <p className="text-sm text-gray-400">Browse available quests on the explore page to get started</p>
           </div>
         );
       }
+
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Only Accepted Quests (as photographer) */}
-          {photographerQuestIds.map(questId => (
-            <QuestDetailsWrapper
-              key={`active-accepted-${questId.toString()}`}
+          {photographerQuests.map(({ questId }) => (
+            <SubmissionCardWithData
+              key={`submission-${questId}`}
               questId={questId}
-              type="accepted"
+              userAddress={connectedAddress}
               onClick={handleQuestClick}
             />
           ))}
@@ -726,11 +493,26 @@ const MyQuestsPage = () => {
     }
 
     // Completed tab
+    if (completedQuests.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">No completed quests yet</h3>
+          <p className="text-gray-500 mb-4">Complete your first quest to earn rewards</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-12">
-        <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">No completed quests yet</h3>
-        <p className="text-gray-500 mb-4">Complete your first quest to earn rewards</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {completedQuests.map(({ questId }) => (
+          <QuestCardWithData
+            key={`completed-${questId}`}
+            questId={questId}
+            type="completed"
+            onClick={handleQuestClick}
+          />
+        ))}
       </div>
     );
   };
@@ -742,6 +524,12 @@ const MyQuestsPage = () => {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">My Quests</h1>
           <p className="text-gray-600 text-lg">Manage your photo quests and submissions</p>
+
+          {/* Contract indicator */}
+          <div className="mt-4 inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <span className="text-sm text-blue-800">🔗 Powered by Smart Contract - Real-time data</span>
+          </div>
         </div>
 
         {/* User Stats */}
@@ -763,7 +551,7 @@ const MyQuestsPage = () => {
             className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center"
           >
             <h3 className="text-3xl font-bold text-gray-900 mb-2">{questCounts.active}</h3>
-            <p className="text-gray-600">Active Quests</p>
+            <p className="text-gray-600">Active Submissions</p>
           </motion.div>
 
           <motion.div
@@ -790,7 +578,7 @@ const MyQuestsPage = () => {
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-50/50"
                 }`}
               >
-                <span className="capitalize">{tab} Quests</span>
+                <span className="capitalize">{tab === "active" ? "My Submissions" : `${tab} Quests`}</span>
                 <span className="ml-2 px-2 py-1 bg-gray-100 rounded-full text-xs">
                   {tab === "created"
                     ? questCounts.created
@@ -815,6 +603,167 @@ const MyQuestsPage = () => {
             onLoginRequired={handleLoginRequired}
           />
         )}
+      </div>
+    </div>
+  );
+};
+
+// Component to fetch and display quest data
+const QuestCardWithData = ({
+  questId,
+  type,
+  onClick,
+}: {
+  questId: number;
+  type: string;
+  onClick: (quest: any) => void;
+}) => {
+  const { data: quest } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getQuest",
+    args: [BigInt(questId)],
+  });
+
+  const { data: submissions } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getQuestSubmissions",
+    args: [BigInt(questId)],
+  });
+
+  if (!quest) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <QuestCard
+      questId={questId}
+      quest={quest}
+      submissions={submissions ? [...submissions] : []}
+      type={type}
+      onClick={onClick}
+    />
+  );
+};
+
+// Component to fetch and display submission data
+const SubmissionCardWithData = ({
+  questId,
+  userAddress,
+  onClick,
+}: {
+  questId: number;
+  userAddress: string | undefined;
+  onClick: (quest: any) => void;
+}) => {
+  const { data: quest } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getQuest",
+    args: [BigInt(questId)],
+  });
+
+  const { data: submission } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "getPhotographerSubmission",
+    args: [BigInt(questId), (userAddress || "0x0") as `0x${string}`],
+  });
+
+  if (!quest || !submission) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const categoryName = Category[quest.category as keyof typeof Category] || "Other";
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6 max-w-md">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-bold text-gray-900 mb-2 truncate">{quest.title}</h3>
+          <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
+            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">{categoryName}</span>
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                quest.status === 2 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+              }`}
+            >
+              {quest.status === 2 ? "Quest Completed" : "Pending Review"}
+            </span>
+          </div>
+        </div>
+        <div className="text-right ml-4 flex-shrink-0">
+          <div className="text-lg font-bold text-green-600">{formatEther(BigInt(quest.reward))} ETH</div>
+          <div className="text-sm text-gray-500">Potential Reward</div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-gray-600 mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            <span>Deadline: {new Date(Number(quest.deadline) * 1000).toLocaleDateString()}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Upload className="w-4 h-4" />
+            <span>Submitted: {new Date(Number(submission.submittedAt) * 1000).toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Photo preview */}
+      <div className="mt-4">
+        <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+          <img
+            src={getIPFSUrl(submission.watermarkedPhotoIPFS)}
+            alt={`Submission for ${quest.title}`}
+            className="w-full h-full object-cover"
+            onError={e => {
+              // Try alternative IPFS gateway on error
+              const target = e.target as HTMLImageElement;
+              const ipfsHash = submission.watermarkedPhotoIPFS;
+              const gateways = getIPFSGateways(ipfsHash);
+
+              const currentIndex = gateways.findIndex(gateway => gateway === target.src);
+              if (currentIndex !== -1 && currentIndex < gateways.length - 1) {
+                target.src = gateways[currentIndex + 1];
+              }
+            }}
+          />
+        </div>
+        <div className="mt-2 text-xs text-gray-500">IPFS: {submission.watermarkedPhotoIPFS.slice(0, 20)}...</div>
+      </div>
+
+      <div className="mt-4">
+        <button
+          onClick={() =>
+            onClick({
+              questId,
+              title: quest.title,
+              description: quest.description,
+              category: quest.category,
+              reward: quest.reward.toString(),
+              deadline: quest.deadline.toString(),
+              status: quest.status,
+              maxSubmissions: quest.maxSubmissions.toString(),
+              requester: quest.requester,
+            })
+          }
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+        >
+          View Quest Details
+        </button>
       </div>
     </div>
   );

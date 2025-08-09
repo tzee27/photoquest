@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import React from "react";
 import { motion } from "framer-motion";
 import { Camera, Filter, Target } from "lucide-react";
@@ -9,140 +9,144 @@ import { formatEther } from "viem";
 import { useAccount } from "wagmi";
 import QuestDetailModal from "~~/components/QuestDetailModal";
 import QuestGrid from "~~/components/QuestGrid";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import { useGetActiveQuests, useGetQuestCounts, useGetQuestSubmissions } from "~~/hooks/useSubgraph";
+import { QuestWithStatus } from "~~/types/subgraph";
 
 // Contract enums mapping
-const QuestStatus = {
-  0: "Open",
-  1: "Accepted",
-  2: "Submitted",
-  3: "Approved",
-  4: "Completed",
-  5: "Cancelled",
-} as const;
-
 const Category = {
-  0: "Portrait",
-  1: "Landscape",
-  2: "Street",
-  3: "Wildlife",
-  4: "Architecture",
-  5: "Event",
-  6: "Product",
-  7: "Other",
+  0: "portrait",
+  1: "landscape",
+  2: "street",
+  3: "wildlife",
+  4: "architecture",
+  5: "event",
+  6: "product",
+  7: "other",
 } as const;
 
-// Individual quest fetcher component
-const QuestFetcher = ({ questId, onQuestLoaded }: { questId: bigint; onQuestLoaded: (quest: any) => void }) => {
-  const { data: quest, isLoading } = useScaffoldReadContract({
-    contractName: "YourContract",
-    functionName: "getQuest",
-    args: [questId],
-  });
+// Transform subgraph quest data to UI format - memoized for performance
+const transformQuestForUI = (quest: QuestWithStatus, submissionCount: number = 0) => {
+  const categoryDisplay = Category[quest.category as keyof typeof Category] || "other";
+  const rewardInEth = formatEther(BigInt(quest.reward));
+  const deadlineDate = new Date(Number(quest.deadline) * 1000).toISOString().split("T")[0];
 
-  useEffect(() => {
-    if (quest && !isLoading) {
-      // Convert contract data to UI format
-      const statusDisplay = QuestStatus[quest.status as keyof typeof QuestStatus];
-      const categoryDisplay = Category[quest.category as keyof typeof Category].toLowerCase();
-      const rewardInEth = formatEther(quest.reward);
-      const deadlineDate = new Date(Number(quest.deadline) * 1000).toISOString().split("T")[0];
+  // Default image based on category
+  const getDefaultImage = (category: string) => {
+    const images = {
+      portrait: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=300&fit=crop",
+      landscape: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
+      street: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
+      wildlife: "https://images.unsplash.com/photo-1549366021-9f761d040a94?w=400&h=300&fit=crop",
+      architecture: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop",
+      event: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=300&fit=crop",
+      product: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
+      other: "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=400&h=300&fit=crop",
+    };
+    return images[category as keyof typeof images] || images.other;
+  };
 
-      // Default image based on category
-      const getDefaultImage = (category: string) => {
-        const images = {
-          portrait: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=300&fit=crop",
-          landscape: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop",
-          street: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
-          wildlife: "https://images.unsplash.com/photo-1549366021-9f761d040a94?w=400&h=300&fit=crop",
-          architecture: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop",
-          event: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=300&fit=crop",
-          product: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-          other: "https://images.unsplash.com/photo-1494790108755-2616c95e2d75?w=400&h=300&fit=crop",
-        };
-        return images[category as keyof typeof images] || images.other;
-      };
+  // Generate simple tags based on category and title
+  const generateTags = (category: string, title: string) => {
+    const categoryTags = {
+      portrait: ["portrait", "people", "lighting"],
+      landscape: ["landscape", "nature", "scenery"],
+      street: ["street", "urban", "candid"],
+      wildlife: ["wildlife", "animals", "nature"],
+      architecture: ["architecture", "buildings", "design"],
+      event: ["event", "celebration", "moments"],
+      product: ["product", "commercial", "still-life"],
+      other: ["photography", "creative", "artistic"],
+    };
 
-      // Generate simple tags based on category and title
-      const generateTags = (category: string, title: string) => {
-        const categoryTags = {
-          portrait: ["portrait", "people", "lighting"],
-          landscape: ["landscape", "nature", "scenery"],
-          street: ["street", "urban", "candid"],
-          wildlife: ["wildlife", "animals", "nature"],
-          architecture: ["architecture", "buildings", "design"],
-          event: ["event", "celebration", "moments"],
-          product: ["product", "commercial", "still-life"],
-          other: ["photography", "creative", "artistic"],
-        };
+    const baseTags = categoryTags[category as keyof typeof categoryTags] || categoryTags.other;
+    const titleWords = title
+      .toLowerCase()
+      .split(" ")
+      .filter(word => word.length > 3);
+    return [...baseTags.slice(0, 2), ...titleWords.slice(0, 1)];
+  };
 
-        const baseTags = categoryTags[category as keyof typeof categoryTags] || categoryTags.other;
-        const titleWords = title
-          .toLowerCase()
-          .split(" ")
-          .filter(word => word.length > 3);
-        return [...baseTags.slice(0, 2), ...titleWords.slice(0, 1)];
-      };
-
-      const questData = {
-        id: questId.toString(),
-        title: quest.title,
-        description: quest.description,
-        category: categoryDisplay as any,
-        imageUrl: getDefaultImage(categoryDisplay),
-        reward: `${rewardInEth} ETH`,
-        deadline: deadlineDate,
-        submissions: 0, // This would need a separate contract call to count submissions
-        maxSubmissions: 50, // Default value, could be added to contract
-        tags: generateTags(categoryDisplay, quest.title),
-        creator: quest.requester,
-        status: statusDisplay.toLowerCase() as any,
-      };
-
-      onQuestLoaded(questData);
-    }
-  }, [quest, isLoading, questId, onQuestLoaded]);
-
-  return null;
+  return {
+    id: quest.questId,
+    title: quest.title,
+    description: `${quest.title} - Photography Quest`,
+    category: categoryDisplay as any,
+    imageUrl: getDefaultImage(categoryDisplay),
+    reward: `${rewardInEth} ETH`,
+    deadline: deadlineDate,
+    submissions: submissionCount,
+    maxSubmissions: Number(quest.maxSubmissions),
+    tags: generateTags(categoryDisplay, quest.title),
+    creator: quest.requester,
+    status: quest.status,
+  };
 };
 
-// Component to fetch and convert quest data
+// Lightweight component for submission counting - only loads when needed
+const QuestSubmissionCounter = React.memo(
+  ({ questId, onSubmissionCount }: { questId: string; onSubmissionCount: (count: number) => void }) => {
+    // Only enable polling for submission counts on active viewing
+    const { data: submissions } = useGetQuestSubmissions(questId, false); // No auto-polling
+
+    React.useEffect(() => {
+      const count = submissions?.photoSubmitteds?.length || 0;
+      onSubmissionCount(count);
+    }, [submissions, onSubmissionCount]);
+
+    return null;
+  },
+);
+
+QuestSubmissionCounter.displayName = "QuestSubmissionCounter";
+
+// Optimized quest data provider with better memory management
 const QuestDataProvider = ({ children }: { children: (quests: any[]) => React.ReactNode }) => {
-  const [questsData, setQuestsData] = useState<any[]>([]);
-  const [loadedQuestIds, setLoadedQuestIds] = useState<Set<string>>(new Set());
+  // Enable polling only for active quests to reduce memory usage
+  const { data: activeQuests, loading, error } = useGetActiveQuests(true);
+  const [questsWithSubmissions, setQuestsWithSubmissions] = useState<any[]>([]);
+  const [submissionCounts, setSubmissionCounts] = useState<Record<string, number>>({});
 
-  // Fetch all open quests from the contract
-  const { data: openQuestIds, isLoading: isLoadingIds } = useScaffoldReadContract({
-    contractName: "YourContract",
-    functionName: "getOpenQuests",
-  });
-
-  const handleQuestLoaded = useCallback((quest: any) => {
-    setLoadedQuestIds(prev => new Set([...prev, quest.id]));
-    setQuestsData(prev => {
-      const existing = prev.find(q => q.id === quest.id);
-      if (existing) return prev;
-      return [...prev, quest];
+  // Memoize the submission count handler to prevent unnecessary re-renders
+  const handleSubmissionCount = useCallback((questId: string, count: number) => {
+    setSubmissionCounts(prev => {
+      if (prev[questId] === count) return prev; // Prevent unnecessary updates
+      return { ...prev, [questId]: count };
     });
   }, []);
 
-  // Reset when quest IDs change
-  useEffect(() => {
-    if (openQuestIds) {
-      setQuestsData([]);
-      setLoadedQuestIds(new Set());
-    }
-  }, [openQuestIds]);
+  // Memoize quest transformation to prevent unnecessary recalculations
+  const transformedQuests = useMemo(() => {
+    if (!activeQuests) return [];
 
-  if (isLoadingIds) {
+    return activeQuests.map(quest => transformQuestForUI(quest, submissionCounts[quest.questId] || 0));
+  }, [activeQuests, submissionCounts]);
+
+  React.useEffect(() => {
+    setQuestsWithSubmissions(transformedQuests);
+  }, [transformedQuests]);
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-600">Loading quests from subgraph...</span>
       </div>
     );
   }
 
-  if (!openQuestIds || openQuestIds.length === 0) {
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-xl font-semibold text-red-600 mb-2">Error Loading Quests</h3>
+        <p className="text-gray-600 mb-4">{error.message}</p>
+        <p className="text-sm text-gray-500">
+          Make sure your subgraph is deployed and the endpoint is configured correctly.
+        </p>
+      </div>
+    );
+  }
+
+  if (!activeQuests || activeQuests.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-xl font-semibold text-gray-800 mb-2">No Active Quests</h3>
@@ -151,26 +155,17 @@ const QuestDataProvider = ({ children }: { children: (quests: any[]) => React.Re
     );
   }
 
-  const isLoadingQuests = loadedQuestIds.size < openQuestIds.length;
-
   return (
     <>
-      {/* Render QuestFetcher components for each quest ID */}
-      {openQuestIds.map((questId: bigint) => (
-        <QuestFetcher key={questId.toString()} questId={questId} onQuestLoaded={handleQuestLoaded} />
+      {/* Only load submission counters for visible quests to save memory */}
+      {activeQuests.slice(0, 20).map(quest => (
+        <QuestSubmissionCounter
+          key={quest.questId}
+          questId={quest.questId}
+          onSubmissionCount={count => handleSubmissionCount(quest.questId, count)}
+        />
       ))}
-
-      {/* Show loading while fetching quest details */}
-      {isLoadingQuests ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <span className="ml-3 text-gray-600">
-            Loading quest details... ({loadedQuestIds.size}/{openQuestIds.length})
-          </span>
-        </div>
-      ) : (
-        children(questsData)
-      )}
+      {children(questsWithSubmissions)}
     </>
   );
 };
@@ -180,58 +175,29 @@ const ExplorePage: NextPage = () => {
   const [showQuestDetail, setShowQuestDetail] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<any>(null);
 
-  // Fetch contract data for stats
-  const { data: openQuestIds } = useScaffoldReadContract({
-    contractName: "YourContract",
-    functionName: "getOpenQuests",
-  });
+  // Use lightweight quest counts for stats instead of full data
+  const questCounts = useGetQuestCounts();
 
-  // Contract write function for accepting quests
-  const { writeContractAsync: acceptQuestAsync } = useScaffoldWriteContract({
-    contractName: "YourContract",
-  });
+  // Use active quests for total rewards calculation (memoized)
+  const { data: activeQuests } = useGetActiveQuests(true);
 
-  const handleQuestClick = (quest: any) => {
+  const handleQuestClick = useCallback((quest: any) => {
     setSelectedQuest(quest);
     setShowQuestDetail(true);
-  };
+  }, []);
 
-  const handleAcceptQuest = async (questId: string) => {
-    if (!isConnected) {
-      console.log("Please connect your wallet first");
-      return;
-    }
+  // Memoize stats calculation to prevent unnecessary recalculations
+  const stats = useMemo(() => {
+    if (!activeQuests) return { activeQuestCount: 0, totalRewards: "0.0", categoryCount: 0 };
 
-    try {
-      await acceptQuestAsync({
-        functionName: "acceptQuest",
-        args: [BigInt(questId)],
-      });
-      console.log("Quest accepted successfully!");
-      // Refresh the page or update local state
-      window.location.reload();
-    } catch (error) {
-      console.error("Error accepting quest:", error);
-    }
-  };
+    const activeQuestCount = activeQuests.length;
+    const totalRewards = activeQuests
+      .reduce((total, quest) => total + Number(formatEther(BigInt(quest.reward))), 0)
+      .toFixed(2);
+    const categoryCount = new Set(activeQuests.map(quest => quest.category)).size;
 
-  // Calculate stats from contract data
-  const activeQuestCount = openQuestIds?.length || 0;
-  const totalRewards = openQuestIds?.length ? (openQuestIds.length * 0.5).toFixed(1) : "0.0";
-  const categoryCount = 8; // Fixed for now, could be made dynamic
-
-  // Calculate actual total rewards from quest data if available
-  const { data: questCounter } = useScaffoldReadContract({
-    contractName: "YourContract",
-    functionName: "questCounter",
-  });
-
-  const actualTotalRewards = useMemo(() => {
-    if (!openQuestIds || openQuestIds.length === 0) return "0.0";
-    // For now, estimate based on average of 0.5 ETH per quest
-    // In production, you'd sum up the actual reward amounts
-    return (openQuestIds.length * 0.5).toFixed(1);
-  }, [openQuestIds]);
+    return { activeQuestCount, totalRewards, categoryCount };
+  }, [activeQuests]);
 
   return (
     <>
@@ -268,21 +234,21 @@ const ExplorePage: NextPage = () => {
                 <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-4">
                   <Camera className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900">{activeQuestCount}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{stats.activeQuestCount}</h3>
                 <p className="text-gray-600">Active Quests</p>
               </div>
               <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center">
                 <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mx-auto mb-4">
                   <Target className="w-6 h-6 text-green-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900">{actualTotalRewards}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{stats.totalRewards}</h3>
                 <p className="text-gray-600">Total ETH Rewards</p>
               </div>
               <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-white/40 p-6 text-center">
                 <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-4">
                   <Filter className="w-6 h-6 text-purple-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900">{categoryCount}</h3>
+                <h3 className="text-2xl font-bold text-gray-900">{stats.categoryCount}</h3>
                 <p className="text-gray-600">Categories</p>
               </div>
             </motion.div>
@@ -296,6 +262,16 @@ const ExplorePage: NextPage = () => {
               {quests => (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
                   <QuestGrid quests={quests} onQuestClick={handleQuestClick} />
+
+                  {/* Subgraph indicator with memory optimization note */}
+                  <div className="mt-8 text-center">
+                    <div className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      <span className="text-sm text-blue-800">
+                        📊 Optimized with The Graph - Memory efficient real-time data
+                      </span>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </QuestDataProvider>

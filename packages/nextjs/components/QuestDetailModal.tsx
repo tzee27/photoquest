@@ -131,15 +131,15 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
         {questSubmissions.map((submission: any, index: number) => (
           <div
             key={index}
-            className={`p-4 bg-white/20 backdrop-blur-sm rounded-lg border transition-all duration-200 ${
+            className={`p-4 bg-gray-50 rounded-lg border transition-all duration-200 ${
               isQuestCreator && contractQuest?.status === 1
                 ? selectedSubmissions.includes(index)
-                  ? "border-blue-400 bg-blue-50/30"
-                  : "border-white/30 hover:border-blue-200"
-                : "border-white/30"
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-gray-200 hover:border-blue-200"
+                : "border-gray-200"
             }`}
           >
-            <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
+            <div className="flex items-center space-x-4 p-4 bg-white rounded-lg border border-gray-100">
               {/* Selection Checkbox for Quest Creator */}
               {isQuestCreator && contractQuest?.status === 1 && (
                 <div className="flex-shrink-0">
@@ -218,7 +218,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
               {/* Submission Details */}
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-1">
-                  <span className="font-mono text-sm text-gray-800 font-semibold">{submission.photographer}</span>
+                  <span className="font-mono text-sm text-gray-900 font-semibold">{submission.photographer}</span>
                   <ExternalLink className="w-4 h-4 text-gray-600" />
                   {submission.isSelected && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
@@ -241,7 +241,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
         {/* Selection Actions - Only show to quest creator */}
         {isQuestCreator && contractQuest?.status === 1 && (
-          <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
             <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submissions</h4>
             <p className="text-sm text-gray-700 mb-4">
               Select the winning submissions to complete the quest and release payments. You can select multiple winners
@@ -250,7 +250,11 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
             <div className="flex space-x-3">
               <button
-                onClick={handleApproveSelected}
+                onClick={() => {
+                  if (selectedSubmissions.length > 0) {
+                    handleSelectSubmissions(selectedSubmissions);
+                  }
+                }}
                 disabled={isApproving || selectedSubmissions.length === 0}
                 className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -273,11 +277,10 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
             </div>
 
             {selectedSubmissions.length > 0 && (
-              <div className="mt-3 p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
                   <strong>Reward Distribution:</strong> {quest.reward} will be split equally among{" "}
-                  {selectedSubmissions.length} winner{selectedSubmissions.length > 1 ? "s" : ""}(
-                  {(parseFloat(quest.reward.replace(" ETH", "")) / selectedSubmissions.length).toFixed(4)} ETH each)
+                  {selectedSubmissions.length} winner{selectedSubmissions.length > 1 ? "s" : ""}
                 </p>
               </div>
             )}
@@ -288,7 +291,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
         {/* Status Info */}
         {contractQuest?.status === 2 && (
-          <div className="p-4 bg-green-50/20 backdrop-blur-sm rounded-lg border border-green-200/30">
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
               <span className="text-green-700 font-medium">Quest Completed & Payment Released</span>
@@ -494,11 +497,10 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative w-full max-w-4xl bg-neutral-900/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-h-[90vh] overflow-hidden"
+          className="relative w-full max-w-4xl bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200 shadow-2xl max-h-[90vh] overflow-hidden"
         >
           {/* Header */}
           <div className="relative h-64 overflow-hidden">
-            <img src={quest.imageUrl} alt={quest.title} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
 
             {/* Close Button */}
@@ -536,13 +538,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
           {/* Content */}
           <div className="flex flex-col h-[calc(90vh-16rem)]">
             {/* Tabs */}
-            <div className="flex border-b border-white/20">
+            <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveTab("details")}
                 className={`px-6 py-4 font-medium transition-colors ${
                   activeTab === "details"
-                    ? "text-blue-600 border-b-2 border-blue-600 bg-white/10"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/5"
+                    ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Quest Details
@@ -551,8 +553,8 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                 onClick={() => setActiveTab("submissions")}
                 className={`px-6 py-4 font-medium transition-colors ${
                   activeTab === "submissions"
-                    ? "text-blue-600 border-b-2 border-blue-600 bg-white/10"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/5"
+                    ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Photo Status {hasSubmissions ? "(Submitted)" : "(Pending)"}
@@ -565,10 +567,10 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                 <div className="space-y-6">
                   {/* Stats Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-2 mb-2">
                         <Users className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium text-gray-200">Submissions</span>
+                        <span className="font-medium text-gray-700">Submissions</span>
                       </div>
                       <div className="text-2xl font-bold text-gray-900">
                         {contractQuest?.submissionCount ? Number(contractQuest.submissionCount) : 0}/
@@ -576,26 +578,26 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       </div>
                     </div>
 
-                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-2 mb-2">
                         <Calendar className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-gray-200">Deadline</span>
+                        <span className="font-medium text-gray-700">Deadline</span>
                       </div>
                       <div className="text-lg font-bold text-gray-900">{getDeadlineText()}</div>
                     </div>
 
-                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center space-x-2 mb-2">
                         <Award className="w-5 h-5 text-yellow-600" />
-                        <span className="font-medium text-gray-200">Creator</span>
+                        <span className="font-medium text-gray-700">Creator</span>
                       </div>
-                      <div className="text-sm font-mono text-gray-100 font-semibold break-all">{quest.creator}</div>
+                      <div className="text-sm font-mono text-gray-800 font-semibold break-all">{quest.creator}</div>
                     </div>
                   </div>
 
                   {/* Tags */}
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-3">Tags</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Tags</h3>
                     <div className="flex flex-wrap gap-2">
                       {quest.tags.map(tag => (
                         <span
@@ -610,13 +612,13 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                   </div>
 
                   {/* Submit Section */}
-                  <div className="p-6 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                  <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Quest Actions</h3>
 
                     {!isConnected ? (
                       <div className="text-center py-8">
                         <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Login Required</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Login Required</h4>
                         <p className="text-gray-700 mb-4">
                           You need to connect your wallet to interact with this quest.
                         </p>
@@ -631,7 +633,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* Quest Creator View */
                       <div className="text-center py-8">
                         <Award className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Your Quest</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Your Quest</h4>
                         <p className="text-gray-700 mb-4">
                           This is your quest. You can monitor submissions and approve completed work in the Submissions
                           tab.
@@ -647,7 +649,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <div className="space-y-4">
                         <div className="text-center py-4">
                           <Camera className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                          <h4 className="text-lg font-semibold text-gray-800 mb-2">Submit to This Quest</h4>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-2">Submit to This Quest</h4>
                           <p className="text-gray-700 mb-4">
                             This quest is accepting submissions. Upload and submit your photo to participate.
                           </p>
@@ -655,7 +657,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                         {/* File Upload Area */}
                         {!selectedFile ? (
-                          <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-white/10">
+                          <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-gray-50">
                             <input
                               type="file"
                               accept="image/*"
@@ -671,11 +673,11 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           </div>
                         ) : (
                           /* File Preview */
-                          <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50/20">
+                          <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
                             <div className="flex items-center space-x-4">
                               <img src={previewUrl} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
                               <div className="flex-1">
-                                <p className="font-medium text-gray-800">{selectedFile.name}</p>
+                                <p className="font-medium text-gray-900">{selectedFile.name}</p>
                                 <p className="text-sm text-gray-600">
                                   {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
                                 </p>
@@ -709,7 +711,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           )}
                         </button>
 
-                        <div className="p-3 bg-green-50/20 border border-green-200/30 rounded-lg">
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                           <p className="text-sm text-green-800">
                             <strong>Note:</strong> Your photo will be uploaded to IPFS and submitted to the quest. Make
                             sure it meets the requirements before submitting.
@@ -720,7 +722,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* User has already submitted */
                       <div className="text-center py-8">
                         <Award className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Submission Complete</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Submission Complete</h4>
                         <p className="text-gray-700 mb-4">
                           You have already submitted to this quest. Check the Submissions tab to view your submission.
                         </p>
@@ -729,7 +731,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* Quest has reached maximum submissions */
                       <div className="text-center py-8">
                         <Users className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Full</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Quest Full</h4>
                         <p className="text-gray-700 mb-4">
                           This quest has reached its maximum number of submissions ({contractQuest.maxSubmissions}).
                         </p>
@@ -742,7 +744,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* Quest submitted */
                       <div className="text-center py-8">
                         <Clock className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Submission Complete</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Submission Complete</h4>
                         <p className="text-gray-700 mb-4">
                           The photographer has submitted their work and it's awaiting approval.
                         </p>
@@ -752,7 +754,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* Quest completed */
                       <div className="text-center py-8">
                         <Award className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Completed</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Quest Completed</h4>
                         <p className="text-gray-700 mb-4">
                           This quest has been completed and the photographer has been paid.
                         </p>
@@ -762,7 +764,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       /* Fallback */
                       <div className="text-center py-8">
                         <Lock className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Quest Not Available</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Quest Not Available</h4>
                         <p className="text-gray-700">This quest is not available for interaction at the moment.</p>
                       </div>
                     )}
@@ -808,15 +810,15 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       {questSubmissions.map((submission: any, index: number) => (
                         <div
                           key={index}
-                          className={`p-4 bg-white/20 backdrop-blur-sm rounded-lg border transition-all duration-200 ${
+                          className={`p-4 bg-gray-50 rounded-lg border transition-all duration-200 ${
                             isQuestCreator && contractQuest?.status === 1
                               ? selectedSubmissions.includes(index)
-                                ? "border-blue-400 bg-blue-50/30"
-                                : "border-white/30 hover:border-blue-200"
-                              : "border-white/30"
+                                ? "border-blue-400 bg-blue-50"
+                                : "border-gray-200 hover:border-blue-200"
+                              : "border-gray-200"
                           }`}
                         >
-                          <div className="flex items-center space-x-4 p-4 bg-white/30 rounded-lg border border-white/40">
+                          <div className="flex items-center space-x-4 p-4 bg-white rounded-lg border border-gray-100">
                             {/* Selection Checkbox for Quest Creator */}
                             {isQuestCreator && contractQuest?.status === 1 && (
                               <div className="flex-shrink-0">
@@ -874,7 +876,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                             {/* Submission Details */}
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-1">
-                                <span className="font-mono text-sm text-gray-800 font-semibold">
+                                <span className="font-mono text-sm text-gray-900 font-semibold">
                                   {submission.photographer}
                                 </span>
                                 <ExternalLink className="w-4 h-4 text-gray-600" />
@@ -899,7 +901,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                       {/* Selection Actions - Only show to quest creator */}
                       {isQuestCreator && contractQuest?.status === 1 && (
-                        <div className="p-4 bg-white/20 backdrop-blur-sm rounded-lg border border-white/30">
+                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                           <h4 className="text-md font-semibold text-gray-900 mb-3">Review Submissions</h4>
                           <p className="text-sm text-gray-700 mb-4">
                             Select the winning submissions to complete the quest and release payments. You can select
@@ -935,7 +937,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                           </div>
 
                           {selectedSubmissions.length > 0 && (
-                            <div className="mt-3 p-3 bg-blue-50/20 border border-blue-200/30 rounded-lg">
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                               <p className="text-sm text-blue-800">
                                 <strong>Reward Distribution:</strong> {quest.reward} will be split equally among{" "}
                                 {selectedSubmissions.length} winner{selectedSubmissions.length > 1 ? "s" : ""}
@@ -949,7 +951,7 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
 
                       {/* Status Info */}
                       {contractQuest?.status === 2 && (
-                        <div className="p-4 bg-green-50/20 backdrop-blur-sm rounded-lg border border-green-200/30">
+                        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                           <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                             <span className="text-green-700 font-medium">Quest Completed & Payment Released</span>
@@ -968,8 +970,8 @@ const QuestDetailModal: React.FC<QuestDetailModalProps> = ({ quest, onClose, isC
                       <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Camera className="w-12 h-12 text-gray-400" />
                       </div>
-                      <h3 className="text-xl font-semibold text-gray-700 mb-2">No Submissions Yet</h3>
-                      <p className="text-gray-500 mb-4">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Submissions Yet</h3>
+                      <p className="text-gray-600 mb-4">
                         This quest is waiting for photographers to submit their work.
                       </p>
                       {contractQuest?.status === 0 && (

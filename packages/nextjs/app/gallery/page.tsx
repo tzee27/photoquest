@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Award, Calendar, Camera, Coins, Download, ExternalLink, Eye, Filter, Tag, User } from "lucide-react";
 import { useAccount } from "wagmi";
-import { useUserOwnedPhotos } from "~~/hooks/useUserOwnedPhotos";
+import { useUserGalleryPhotos } from "~~/hooks/useSubgraph";
 import { getIPFSUrl } from "~~/utils/pinata";
 
 const categoryNames = ["Portrait", "Landscape", "Street", "Wildlife", "Architecture", "Event", "Product", "Other"];
@@ -18,8 +18,16 @@ export default function GalleryPage() {
 
   const { address: connectedAddress, isConnected } = useAccount();
 
-  // Use the custom hook to fetch all owned photos
-  const { ownedPhotos, isLoading, error } = useUserOwnedPhotos(connectedAddress);
+  // Use the new subgraph-powered hook for gallery photos
+  const {
+    photos: ownedPhotos,
+    loading: isLoading,
+    error,
+    totalPhotos,
+    totalSpent,
+    uniqueQuests,
+    uniquePhotographers,
+  } = useUserGalleryPhotos(connectedAddress || "", false); // No auto-polling for better performance
 
   // Filter photos based on selected filters
   const filteredPhotos = ownedPhotos.filter(item => {
@@ -47,11 +55,19 @@ export default function GalleryPage() {
     }
   };
 
-  const handleDownload = (ipfsHash: string, questTitle: string, photographer: string) => {
-    const ipfsUrl = getIPFSUrl(ipfsHash);
+  const handleDownload = (
+    originalPhotoIPFS: string,
+    watermarkedPhotoIPFS: string,
+    questTitle: string,
+    photographer: string,
+  ) => {
+    // Use original photo if available, fallback to watermarked photo
+    const downloadHash =
+      originalPhotoIPFS && originalPhotoIPFS !== watermarkedPhotoIPFS ? originalPhotoIPFS : watermarkedPhotoIPFS;
+    const ipfsUrl = getIPFSUrl(downloadHash);
     const link = document.createElement("a");
     link.href = ipfsUrl;
-    link.download = `${questTitle}-by-${photographer}.jpg`;
+    link.download = `${questTitle}-by-${photographer}-${originalPhotoIPFS && originalPhotoIPFS !== watermarkedPhotoIPFS ? "original" : "watermarked"}.jpg`;
     link.target = "_blank";
     document.body.appendChild(link);
     link.click();
@@ -60,8 +76,6 @@ export default function GalleryPage() {
 
   const uniqueCategories = ["All", ...Array.from(new Set(ownedPhotos.map(p => categoryNames[p.questCategory])))];
   const uniqueStatuses = ["All", ...Array.from(new Set(ownedPhotos.map(p => statusNames[p.questStatus])))];
-
-  const totalSpent = ownedPhotos.reduce((sum, photo) => sum + parseFloat(photo.paidAmount.replace(" ETH", "")), 0);
 
   if (!isConnected) {
     return (
@@ -81,10 +95,15 @@ export default function GalleryPage() {
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">My Photo Collection</h1>
         <p className="text-gray-600">
-          Your purchased photos from completed quests • {ownedPhotos.length} photos owned • {totalSpent.toFixed(4)} ETH
-          spent
+          Your purchased photos from completed quests • {totalPhotos} photos owned • {totalSpent.toFixed(4)} ETH spent
         </p>
-        {error && <p className="text-sm text-red-600 mt-2">{error} - Some photos may not be displayed.</p>}
+        {error && <p className="text-sm text-red-600 mt-2">{error.message} - Some photos may not be displayed.</p>}
+
+        {/* Subgraph indicator */}
+        <div className="mt-4 inline-flex items-center px-3 py-1 bg-green-50 border border-green-200 rounded-lg">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+          <span className="text-xs text-green-800">📊 Powered by The Graph - Optimized data loading</span>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -95,7 +114,7 @@ export default function GalleryPage() {
               <Camera className="w-5 h-5 text-blue-600" />
               <span className="font-medium text-gray-700">Total Photos</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{ownedPhotos.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{totalPhotos}</div>
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm border">
@@ -111,7 +130,7 @@ export default function GalleryPage() {
               <Award className="w-5 h-5 text-purple-600" />
               <span className="font-medium text-gray-700">Quests Completed</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{new Set(ownedPhotos.map(p => p.questId)).size}</div>
+            <div className="text-2xl font-bold text-gray-900">{uniqueQuests}</div>
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm border">
@@ -119,9 +138,7 @@ export default function GalleryPage() {
               <User className="w-5 h-5 text-orange-600" />
               <span className="font-medium text-gray-700">Photographers</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
-              {new Set(ownedPhotos.map(p => p.selectedSubmission.photographer)).size}
-            </div>
+            <div className="text-2xl font-bold text-gray-900">{uniquePhotographers}</div>
           </div>
         </div>
       )}
@@ -174,7 +191,7 @@ export default function GalleryPage() {
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <span className="ml-3 text-gray-600">Loading your collection...</span>
+          <span className="ml-3 text-gray-600">Loading your collection from subgraph...</span>
         </div>
       )}
 
@@ -201,7 +218,7 @@ export default function GalleryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredPhotos.map((photo, index) => (
             <motion.div
-              key={`${photo.questId}-${photo.selectedSubmission.photographer}-${index}`}
+              key={`${photo.questId}-${photo.photographer}-${photo.submissionIndex}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -209,12 +226,12 @@ export default function GalleryPage() {
             >
               {/* Image */}
               <div className="relative aspect-square">
-                {!imageError.has(photo.selectedSubmission.originalPhotoIPFS) ? (
+                {!imageError.has(photo.watermarkedPhotoIPFS) ? (
                   <img
-                    src={getIPFSUrl(photo.selectedSubmission.originalPhotoIPFS)}
+                    src={getIPFSUrl(photo.watermarkedPhotoIPFS)}
                     alt={`Owned photo from ${photo.questTitle}`}
                     className="w-full h-full object-cover"
-                    onError={() => handleImageError(photo.selectedSubmission.originalPhotoIPFS)}
+                    onError={() => handleImageError(photo.watermarkedPhotoIPFS)}
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -241,15 +258,20 @@ export default function GalleryPage() {
                   <button
                     onClick={() =>
                       handleDownload(
-                        photo.selectedSubmission.originalPhotoIPFS,
+                        photo.originalPhotoIPFS,
+                        photo.watermarkedPhotoIPFS,
                         photo.questTitle,
-                        photo.selectedSubmission.photographer,
+                        photo.photographer,
                       )
                     }
                     className="px-4 py-2 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center space-x-2"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Download</span>
+                    <span>
+                      {photo.originalPhotoIPFS && photo.originalPhotoIPFS !== photo.watermarkedPhotoIPFS
+                        ? "Download Original"
+                        : "Download"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -267,8 +289,8 @@ export default function GalleryPage() {
                   <div className="flex items-center space-x-2">
                     <User className="w-4 h-4" />
                     <span className="font-mono text-xs truncate">
-                      {photo.selectedSubmission.photographer.slice(0, 6)}...
-                      {photo.selectedSubmission.photographer.slice(-4)}
+                      {photo.photographer.slice(0, 6)}...
+                      {photo.photographer.slice(-4)}
                     </span>
                   </div>
 
@@ -279,9 +301,7 @@ export default function GalleryPage() {
 
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4" />
-                    <span>
-                      Acquired: {new Date(Number(photo.selectedSubmission.submittedAt) * 1000).toLocaleDateString()}
-                    </span>
+                    <span>Acquired: {new Date(Number(photo.submittedAt) * 1000).toLocaleDateString()}</span>
                   </div>
 
                   {photo.totalSelected > 1 && (
@@ -292,13 +312,19 @@ export default function GalleryPage() {
                   )}
                 </div>
 
-                {/* Original Photo IPFS Info */}
+                {/* IPFS Info */}
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <ExternalLink className="w-3 h-3" />
-                    <span className="font-mono truncate">
-                      Original: {photo.selectedSubmission.originalPhotoIPFS.slice(0, 15)}...
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                      <ExternalLink className="w-3 h-3" />
+                      <span className="font-mono truncate">Display: {photo.watermarkedPhotoIPFS.slice(0, 15)}...</span>
+                    </div>
+                    {photo.originalPhotoIPFS && photo.originalPhotoIPFS !== photo.watermarkedPhotoIPFS && (
+                      <div className="flex items-center space-x-2 text-xs text-green-600">
+                        <Download className="w-3 h-3" />
+                        <span className="font-mono truncate">Original: {photo.originalPhotoIPFS.slice(0, 15)}...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

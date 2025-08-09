@@ -47,7 +47,14 @@
     "vercel": "yarn workspace @se-2/nextjs vercel",
     "vercel:login": "yarn workspace @se-2/nextjs vercel:login",
     "vercel:yolo": "yarn workspace @se-2/nextjs vercel:yolo",
-    "verify": "yarn foundry:verify"
+    "verify": "yarn foundry:verify",
+    "subgraph:codegen": "yarn workspace photo-quest codegen",
+    "subgraph:build": "yarn workspace photo-quest build",
+    "subgraph:deploy": "yarn workspace photo-quest deploy",
+    "subgraph:deploy-local": "yarn workspace photo-quest deploy-local",
+    "subgraph:create-local": "yarn workspace photo-quest create-local",
+    "subgraph:remove-local": "yarn workspace photo-quest remove-local",
+    "subgraph:test": "yarn workspace photo-quest test"
   },
   "devDependencies": {
     "husky": "~9.1.6",
