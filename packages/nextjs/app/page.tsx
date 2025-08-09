@@ -6,124 +6,19 @@ import { useAccount } from "wagmi";
 import CreateQuestModal from "~~/components/CreateQuestModal";
 import Hero from "~~/components/Hero";
 import LeaderboardModal from "~~/components/LeaderboardModal";
-import MyQuestsModal from "~~/components/MyQuestsModal";
-import QuestDetailModal from "~~/components/QuestDetailModal";
-import QuestGrid from "~~/components/QuestGrid";
-
-// Mock data for demonstration - replace with actual data from your backend/contracts
-const mockQuests = [
-  {
-    id: "1",
-    title: "Urban Street Art Photography",
-    description:
-      "Capture stunning street art and murals in urban environments. Show the artistic expression and cultural vibes of your city.",
-    category: "urban" as const,
-    imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
-    reward: "0.5 ETH",
-    deadline: "2024-12-31",
-    submissions: 12,
-    maxSubmissions: 25,
-    tags: ["streetart", "urban", "culture"],
-    creator: "0x1234...5678",
-    status: "active" as const,
-  },
-  {
-    id: "2",
-    title: "Nature Macro Photography",
-    description:
-      "Capture stunning macro shots of insects, flowers, or other small natural subjects. Focus on details and textures.",
-    category: "nature" as const,
-    imageUrl: "https://images.unsplash.com/photo-1594736797933-d0801ba2fe65?w=400&h=300&fit=crop",
-    reward: "0.3 ETH",
-    deadline: "2024-12-25",
-    submissions: 8,
-    maxSubmissions: 20,
-    tags: ["macro", "insects", "flowers"],
-    creator: "0x2345...6789",
-    status: "active" as const,
-  },
-  {
-    id: "3",
-    title: "Architectural Minimalism",
-    description:
-      "Showcase minimalist architecture with clean lines, geometric shapes, and negative space. Black and white encouraged.",
-    category: "architecture" as const,
-    imageUrl: "https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=400&h=300&fit=crop",
-    reward: "0.7 ETH",
-    deadline: "2025-01-15",
-    submissions: 5,
-    maxSubmissions: 15,
-    tags: ["minimalism", "architecture", "blackwhite"],
-    creator: "0x3456...7890",
-    status: "active" as const,
-  },
-  {
-    id: "4",
-    title: "Portrait in Golden Hour",
-    description:
-      "Capture beautiful portraits during the golden hour. Focus on natural lighting and emotional expression.",
-    category: "portrait" as const,
-    imageUrl: "https://images.unsplash.com/photo-1494790108755-2616c35781e1?w=400&h=300&fit=crop",
-    reward: "0.4 ETH",
-    deadline: "2024-12-28",
-    submissions: 15,
-    maxSubmissions: 30,
-    tags: ["portrait", "goldenhour", "natural"],
-    creator: "0x4567...8901",
-    status: "active" as const,
-  },
-  {
-    id: "5",
-    title: "Abstract Light Photography",
-    description:
-      "Create abstract compositions using light, shadows, and reflections. Experiment with creative techniques.",
-    category: "abstract" as const,
-    imageUrl: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=300&fit=crop",
-    reward: "0.6 ETH",
-    deadline: "2025-01-10",
-    submissions: 3,
-    maxSubmissions: 12,
-    tags: ["abstract", "light", "creative"],
-    creator: "0x5678...9012",
-    status: "active" as const,
-  },
-  {
-    id: "6",
-    title: "Wildlife in Action",
-    description:
-      "Capture wildlife in their natural habitat with focus on movement and behavior. Telephoto lenses recommended.",
-    category: "wildlife" as const,
-    imageUrl: "https://images.unsplash.com/photo-1549366021-9f761d040a94?w=400&h=300&fit=crop",
-    reward: "0.8 ETH",
-    deadline: "2025-01-20",
-    submissions: 7,
-    maxSubmissions: 18,
-    tags: ["wildlife", "action", "telephoto"],
-    creator: "0x6789...0123",
-    status: "active" as const,
-  },
-];
 
 const Home: NextPage = () => {
   const { address: connectedAddress, isConnected } = useAccount();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showQuestDetail, setShowQuestDetail] = useState(false);
-  const [showMyQuests, setShowMyQuests] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [selectedQuest, setSelectedQuest] = useState<any>(null);
 
   const handleExploreQuests = () => {
-    const questsSection = document.getElementById("quests-section");
-    questsSection?.scrollIntoView({ behavior: "smooth" });
+    // Navigate to the explore page
+    window.location.href = "/explore";
   };
 
   const handleCreateQuest = () => {
     setShowCreateModal(true);
-  };
-
-  const handleQuestClick = (quest: any) => {
-    setSelectedQuest(quest);
-    setShowQuestDetail(true);
   };
 
   return (
@@ -133,18 +28,98 @@ const Home: NextPage = () => {
         {/* Hero Section */}
         <Hero onExploreQuests={handleExploreQuests} onCreateQuest={handleCreateQuest} isConnected={isConnected} />
 
-        {/* Active Photo Quests Section */}
-        <section id="quests-section" className="py-20 px-4 sm:px-6 lg:px-8">
+        {/* Features Section */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">Active Photo Quests</h2>
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose PhotoQuest?</h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Browse and participate in photography challenges across all categories. Submit your best work and earn
-                rewards.
+                Join the decentralized photography marketplace where creativity meets blockchain technology.
               </p>
             </div>
 
-            <QuestGrid quests={mockQuests} onQuestClick={handleQuestClick} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg p-8 text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Decentralized Marketplace</h3>
+                <p className="text-gray-600">
+                  Create and participate in photography challenges on the blockchain with smart contract security.
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg p-8 text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Earn ETH Rewards</h3>
+                <p className="text-gray-600">
+                  Get paid in cryptocurrency for your photography skills and creative contributions to the community.
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg p-8 text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Global Community</h3>
+                <p className="text-gray-600">
+                  Connect with photographers worldwide and participate in diverse, creative challenges.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Call to Action */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white/40 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Start Your Photography Journey?</h2>
+            <p className="text-lg text-gray-600 mb-8">
+              Join thousands of photographers earning ETH through creative challenges.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={handleExploreQuests}
+                className="px-8 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              >
+                Explore Quests
+              </button>
+              <button
+                onClick={handleCreateQuest}
+                className="px-8 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Create Quest
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -157,30 +132,6 @@ const Home: NextPage = () => {
             console.log("Quest created:", quest);
             setShowCreateModal(false);
           }}
-        />
-      )}
-
-      {showQuestDetail && selectedQuest && (
-        <QuestDetailModal
-          onClose={() => setShowQuestDetail(false)}
-          quest={selectedQuest}
-          isConnected={isConnected}
-          onLoginRequired={() => {
-            console.log("Login required");
-          }}
-        />
-      )}
-
-      {showMyQuests && (
-        <MyQuestsModal
-          onClose={() => setShowMyQuests(false)}
-          user={{
-            address: connectedAddress || "",
-            totalEarnings: 0,
-            questsCompleted: 0,
-            rating: 0,
-          }}
-          quests={mockQuests}
         />
       )}
 

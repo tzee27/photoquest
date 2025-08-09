@@ -2,14 +2,34 @@ import React, { useState } from "react";
 import { PHOTO_CATEGORIES } from "../constants/categories";
 import { PhotoCategory, Quest } from "../types";
 import { AnimatePresence, motion } from "framer-motion";
-import { Calendar, Camera, Coins, Image, Tag, Upload, Users, X } from "lucide-react";
+import { Calendar, Camera, Coins, Image, Loader2, Tag, Upload, Users, X } from "lucide-react";
+import { parseEther } from "viem";
+import { useAccount } from "wagmi";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 interface CreateQuestModalProps {
   onClose: () => void;
   onSubmit: (quest: Omit<Quest, "id" | "submissions" | "status">) => void;
 }
 
+// Mapping frontend categories to smart contract enum values
+const categoryToContractEnum: Record<PhotoCategory, number> = {
+  portrait: 0,
+  landscape: 1,
+  street: 2,
+  wildlife: 3,
+  architecture: 4,
+  event: 5,
+  travel: 6, // Map to Product in contract
+  abstract: 7, // Map to Other in contract
+  nature: 7, // Map to Other in contract
+  urban: 2, // Map to Street in contract
+  macro: 7, // Map to Other in contract
+  night: 7, // Map to Other in contract
+};
+
 const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }) => {
+  const { address: connectedAddress } = useAccount();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -21,31 +41,83 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
     category: "" as PhotoCategory | "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { writeContractAsync: writeYourContractAsync } = useScaffoldWriteContract("YourContract");
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.category) {
-      alert("Please select a category");
+    if (!connectedAddress) {
+      setError("Please connect your wallet first");
       return;
     }
 
-    const questData: Omit<Quest, "id" | "submissions" | "status"> = {
-      title: formData.title,
-      description: formData.description,
-      reward: formData.reward,
-      deadline: formData.deadline,
-      creator: "0x1234...5678", // Mock address
-      maxSubmissions: parseInt(formData.maxSubmissions),
-      imageUrl:
-        formData.imageUrl || "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop",
-      tags: formData.tags
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(Boolean),
-      category: formData.category as PhotoCategory,
-    };
+    if (!formData.category) {
+      setError("Please select a category");
+      return;
+    }
 
-    onSubmit(questData);
+    if (!formData.reward || parseFloat(formData.reward) <= 0) {
+      setError("Please enter a valid reward amount");
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+
+    try {
+      // Convert deadline to timestamp
+      const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
+
+      // Convert reward to wei
+      const rewardInWei = parseEther(formData.reward);
+
+      // Get contract enum value for category
+      const categoryEnum = categoryToContractEnum[formData.category];
+
+      console.log("Creating quest with params:", {
+        title: formData.title,
+        description: formData.description,
+        category: categoryEnum,
+        deadline: deadlineTimestamp,
+        value: rewardInWei.toString(),
+      });
+
+      // Call smart contract
+      const result = await writeYourContractAsync({
+        functionName: "createQuest",
+        args: [formData.title, formData.description, categoryEnum, BigInt(deadlineTimestamp)],
+        value: rewardInWei,
+      });
+
+      console.log("Quest created successfully:", result);
+
+      // Create quest data for UI update (optional - you might want to refetch from contract instead)
+      const questData: Omit<Quest, "id" | "submissions" | "status"> = {
+        title: formData.title,
+        description: formData.description,
+        reward: `${formData.reward} ETH`,
+        deadline: formData.deadline,
+        creator: connectedAddress,
+        maxSubmissions: parseInt(formData.maxSubmissions) || 50,
+        imageUrl:
+          formData.imageUrl || "https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=300&fit=crop",
+        tags: formData.tags
+          .split(",")
+          .map(tag => tag.trim())
+          .filter(Boolean),
+        category: formData.category as PhotoCategory,
+      };
+
+      onSubmit(questData);
+    } catch (error: any) {
+      console.error("Error creating quest:", error);
+      setError(error.message || "Failed to create quest. Please try again.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -53,6 +125,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
       ...formData,
       [e.target.name]: e.target.value,
     });
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
   return (
@@ -82,6 +156,13 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
             </button>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mx-6 mt-4 p-4 bg-red-100 border border-red-300 rounded-lg">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {/* Title */}
@@ -93,7 +174,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 value={formData.title}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                disabled={isCreating}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
                 placeholder="Enter quest title..."
               />
             </div>
@@ -109,7 +191,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 value={formData.category}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                disabled={isCreating}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 disabled:opacity-50"
               >
                 <option value="">Select a category...</option>
                 {PHOTO_CATEGORIES.map(category => (
@@ -129,7 +212,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 onChange={handleChange}
                 required
                 rows={4}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 resize-none"
+                disabled={isCreating}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 resize-none disabled:opacity-50"
                 placeholder="Describe your photography challenge..."
               />
             </div>
@@ -145,7 +229,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 name="imageUrl"
                 value={formData.imageUrl}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                disabled={isCreating}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
                 placeholder="https://images.unsplash.com/..."
               />
             </div>
@@ -158,29 +243,33 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                   Reward (ETH)
                 </label>
                 <input
-                  type="text"
+                  type="number"
+                  step="0.001"
+                  min="0.001"
                   name="reward"
                   value={formData.reward}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
-                  placeholder="0.5 ETH"
+                  disabled={isCreating}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
+                  placeholder="0.1"
                 />
+                <p className="text-xs text-gray-600 mt-1">Minimum: 0.001 ETH</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Users className="w-4 h-4 inline mr-2" />
-                  Max Submissions
+                  Max Submissions (optional)
                 </label>
                 <input
                   type="number"
                   name="maxSubmissions"
                   value={formData.maxSubmissions}
                   onChange={handleChange}
-                  required
                   min="1"
-                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                  disabled={isCreating}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
                   placeholder="50"
                 />
               </div>
@@ -193,13 +282,14 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 Deadline
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 name="deadline"
                 value={formData.deadline}
                 onChange={handleChange}
                 required
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                disabled={isCreating}
+                min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)} // Minimum 24 hours from now
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 disabled:opacity-50"
               />
             </div>
 
@@ -214,7 +304,8 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
                 name="tags"
                 value={formData.tags}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                disabled={isCreating}
+                className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 disabled:opacity-50"
                 placeholder="photography, nature, landscape"
               />
             </div>
@@ -224,17 +315,24 @@ const CreateQuestModal: React.FC<CreateQuestModalProps> = ({ onClose, onSubmit }
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 text-gray-700 hover:bg-white/20 rounded-lg transition-colors font-medium"
+                disabled={isCreating}
+                className="px-6 py-3 text-gray-700 hover:bg-white/20 rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-8 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                disabled={isCreating || !connectedAddress}
+                className="px-8 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2"
               >
-                Create Quest
+                {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{isCreating ? "Creating Quest..." : "Create Quest"}</span>
               </button>
             </div>
+
+            {!connectedAddress && (
+              <p className="text-center text-sm text-gray-600">Please connect your wallet to create a quest</p>
+            )}
           </form>
         </motion.div>
       </div>
