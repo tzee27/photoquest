@@ -43,6 +43,7 @@ async function fixture() {
     verifyingContract: mock.address,
   };
 
+  
   return { helper, validator, mock, domain, entrypointDomain, eoa, target, anotherTarget, beneficiary, other };
 }
 
